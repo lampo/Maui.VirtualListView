@@ -29,12 +29,14 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
     public void SetupView(IView view)
 	{
 		if (NativeView is null)
+		{
 			NativeView = view.ToPlatform(MauiContext);
+			AddView(NativeView);
+		}
 
 		if (VirtualView is null)
 		{
 			VirtualView = view;
-			AddView(NativeView);
 		}
     }
 }
