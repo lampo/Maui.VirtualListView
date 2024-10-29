@@ -1,5 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
+		<PackageVersion>0.4.1-rs1</PackageVersion>
+	  </PropertyGroup>
+
+	  <PropertyGroup>
+		<VersionPrefix>0.4.1</VersionPrefix>
+		<VersionSuffix>rs1</VersionSuffix>
+	  </PropertyGroup>
+	  
+	<PropertyGroup>
 		<TargetFrameworks>net8.0;net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>
 		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041</TargetFrameworks>
 		
@@ -24,9 +33,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<DebugType>portable</DebugType>
-		<DebugSymbols>true</DebugSymbols>
-
-		
+		<DebugSymbols>true</DebugSymbols>		
 	</PropertyGroup>
 
 	<ItemGroup>
