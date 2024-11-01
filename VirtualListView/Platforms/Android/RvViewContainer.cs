@@ -1,42 +1,51 @@
-﻿using AView = Android.Views.View;
-using Microsoft.Maui.Platform;
+﻿using Microsoft.Maui.Platform;
+using AView = Android.Views.View;
 
 namespace Microsoft.Maui;
 
 sealed class RvViewContainer : Android.Widget.FrameLayout
 {
-	public RvViewContainer(IMauiContext context)
-		: base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))
-	{
-		MauiContext = context;
-		Id = AView.GenerateViewId();
-	}
+    private object lockObj = new object();
 
-	public readonly IMauiContext MauiContext;
+    public RvViewContainer(IMauiContext context)
+        : base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))
+    {
+        MauiContext = context;
+        Id = AView.GenerateViewId();
+    }
 
-	public IView VirtualView { get; private set; }
+    public readonly IMauiContext MauiContext;
 
-	public AView NativeView { get; private set; }
+    public IView VirtualView { get; private set; }
 
-	public bool NeedsView => VirtualView is null || VirtualView.Handler is null || NativeView is null;
+    public AView NativeView { get; private set; }
 
-	public void UpdatePosition(IPositionInfo positionInfo)
-	{
+    public bool NeedsView =>
+        VirtualView is null || VirtualView.Handler is null || NativeView is null;
+
+    public void UpdatePosition(IPositionInfo positionInfo)
+    {
         if (VirtualView is IPositionInfo viewWithPositionInfo)
-			viewWithPositionInfo.Update(positionInfo);
+            viewWithPositionInfo.Update(positionInfo);
     }
 
     public void SetupView(IView view)
-	{
-		if (NativeView is null)
-		{
-			NativeView = view.ToPlatform(MauiContext);
-			AddView(NativeView);
-		}
+    {
+        if (NativeView is null)
+        {
+            lock (lockObj)
+            {
+                if (NativeView is null)
+                {
+                    NativeView = view.ToPlatform(MauiContext);
+                    AddView(NativeView);
+                }
+            }
+        }
 
-		if (VirtualView is null)
-		{
-			VirtualView = view;
-		}
+        if (VirtualView is null)
+        {
+            VirtualView = view;
+        }
     }
 }

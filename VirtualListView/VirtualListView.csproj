@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<PackageVersion>0.4.1-rs1</PackageVersion>
+		<PackageVersion>0.4.1-rs2</PackageVersion>
 	  </PropertyGroup>
 
 	  <PropertyGroup>
 		<VersionPrefix>0.4.1</VersionPrefix>
-		<VersionSuffix>rs1</VersionSuffix>
+		<VersionSuffix>rs2</VersionSuffix>
 	  </PropertyGroup>
 	  
 	<PropertyGroup>
