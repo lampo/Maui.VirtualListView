@@ -5,8 +5,6 @@ namespace Microsoft.Maui;
 
 sealed class RvViewContainer : Android.Widget.FrameLayout
 {
-    private readonly object lockObj = new();
-
     public RvViewContainer(IMauiContext context)
         : base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))
     {
@@ -33,14 +31,12 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
     {
         if (NativeView is null)
         {
-            lock (lockObj)
+            NativeView = view.ToPlatform(MauiContext);
+            if (NativeView.Parent is not null)
             {
-                if (NativeView is null)
-                {
-                    NativeView = view.ToPlatform(MauiContext);
-                    AddView(NativeView);
-                }
+                NativeView.RemoveFromParent();
             }
+            AddView(NativeView);
         }
 
         if (VirtualView is null)
