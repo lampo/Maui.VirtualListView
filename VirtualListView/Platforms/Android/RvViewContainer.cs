@@ -5,7 +5,7 @@ namespace Microsoft.Maui;
 
 sealed class RvViewContainer : Android.Widget.FrameLayout
 {
-    private object lockObj = new object();
+    private readonly object lockObj = new();
 
     public RvViewContainer(IMauiContext context)
         : base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))
