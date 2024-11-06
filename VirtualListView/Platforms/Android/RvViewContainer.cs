@@ -1,4 +1,5 @@
-﻿using Microsoft.Maui.Platform;
+﻿using Android.Views;
+using Microsoft.Maui.Platform;
 using AView = Android.Views.View;
 
 namespace Microsoft.Maui;
@@ -32,9 +33,9 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
         if (NativeView is null)
         {
             NativeView = view.ToPlatform(MauiContext);
-            if (NativeView.Parent is not null)
+            if (NativeView.Parent is ViewGroup parent)
             {
-                NativeView.RemoveFromParent();
+                parent.RemoveView(NativeView);
             }
             AddView(NativeView);
         }

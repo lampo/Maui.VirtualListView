@@ -1,4 +1,5 @@
-﻿using Android.Content;
+﻿using System.Collections.Concurrent;
+using Android.Content;
 using Android.Views;
 using AndroidX.RecyclerView.Widget;
 
@@ -6,160 +7,166 @@ namespace Microsoft.Maui;
 
 internal partial class RvAdapter : RecyclerView.Adapter
 {
-	readonly VirtualListViewHandler handler;
+    readonly VirtualListViewHandler handler;
 
-	readonly object lockObj = new object();
+    readonly object lockObj = new object();
 
-	readonly PositionalViewSelector positionalViewSelector;
+    readonly PositionalViewSelector positionalViewSelector;
 
-	RvViewHolderClickListener clickListener;
+    RvViewHolderClickListener clickListener;
 
-	public Context Context { get; }
+    public Context Context { get; }
 
-	public object BindingContext { get; set; }
+    public object BindingContext { get; set; }
 
-	int? cachedItemCount = null;
+    int? cachedItemCount = null;
 
-	public override int ItemCount
-		=> (cachedItemCount ??= positionalViewSelector?.TotalCount ?? 0);
+    public override int ItemCount => (cachedItemCount ??= positionalViewSelector?.TotalCount ?? 0);
 
-	internal RvAdapter(Context context, VirtualListViewHandler handler, PositionalViewSelector positionalViewSelector)
-	{
-		Context = context;
-		HasStableIds = false;
+    internal RvAdapter(
+        Context context,
+        VirtualListViewHandler handler,
+        PositionalViewSelector positionalViewSelector
+    )
+    {
+        Context = context;
+        HasStableIds = false;
 
-		this.handler = handler;
-		this.positionalViewSelector = positionalViewSelector;
-	}
+        this.handler = handler;
+        this.positionalViewSelector = positionalViewSelector;
+    }
 
-	public float DisplayScale =>
-		handler?.Context?.Resources.DisplayMetrics.Density ?? 1;
+    public float DisplayScale => handler?.Context?.Resources.DisplayMetrics.Density ?? 1;
 
-	public override void OnViewAttachedToWindow(Java.Lang.Object holder)
-	{
-		base.OnViewAttachedToWindow(holder);
+    public override void OnViewAttachedToWindow(Java.Lang.Object holder)
+    {
+        base.OnViewAttachedToWindow(holder);
 
-		if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
-			handler.VirtualView.ViewSelector.ViewAttached(rvItemHolder.PositionInfo, rvItemHolder.ViewContainer.VirtualView);
-	}
+        if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
+            handler.VirtualView.ViewSelector.ViewAttached(
+                rvItemHolder.PositionInfo,
+                rvItemHolder.ViewContainer.VirtualView
+            );
+    }
 
-	public override void OnViewDetachedFromWindow(Java.Lang.Object holder)
-	{
-		if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
-			handler.VirtualView.ViewSelector.ViewDetached(rvItemHolder.PositionInfo, rvItemHolder.ViewContainer.VirtualView);
+    public override void OnViewDetachedFromWindow(Java.Lang.Object holder)
+    {
+        if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
+            handler.VirtualView.ViewSelector.ViewDetached(
+                rvItemHolder.PositionInfo,
+                rvItemHolder.ViewContainer.VirtualView
+            );
 
-		base.OnViewDetachedFromWindow(holder);
-	}
+        base.OnViewDetachedFromWindow(holder);
+    }
 
-	public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
-	{
-		var info = positionalViewSelector.GetInfo(position);
+    public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
+    {
+        var info = positionalViewSelector.GetInfo(position);
 
-		if (info == null)
-			return;
+        if (info == null)
+            return;
 
-		// The template selector doesn't infer selected properly
-		// so we need to ask the listview which tracks selections about the state
-		info.IsSelected = info.Kind == PositionKind.Item
-			&& (handler?.IsItemSelected(info.SectionIndex, info.ItemIndex) ?? false);
+        // The template selector doesn't infer selected properly
+        // so we need to ask the listview which tracks selections about the state
+        info.IsSelected =
+            info.Kind == PositionKind.Item
+            && (handler?.IsItemSelected(info.SectionIndex, info.ItemIndex) ?? false);
 
-		if (holder is RvItemHolder itemHolder)
-		{
-			var data = info.Kind switch {
-				PositionKind.Item =>
-					positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
-				PositionKind.SectionHeader =>
-					positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
-				PositionKind.SectionFooter =>
-					positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
-				_ => null
-			};
+        if (holder is RvItemHolder itemHolder)
+        {
+            var data = info.Kind switch
+            {
+                PositionKind.Item
+                    => positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
+                PositionKind.SectionHeader
+                    => positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                PositionKind.SectionFooter
+                    => positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                _ => null
+            };
 
-			if (itemHolder.NeedsView)
-			{
-				var newView = positionalViewSelector?.ViewSelector?.CreateView(info, data);
-				itemHolder.SetupView(newView);
+            if (itemHolder.NeedsView)
+            {
+                var newView = positionalViewSelector?.ViewSelector?.CreateView(info, data);
+                itemHolder.SetupView(newView);
             }
 
             itemHolder.UpdatePosition(info);
 
-            positionalViewSelector?.ViewSelector?.RecycleView(info, data, itemHolder.ViewContainer.VirtualView);
-		}
-	}
+            positionalViewSelector?.ViewSelector?.RecycleView(
+                info,
+                data,
+                itemHolder.ViewContainer.VirtualView
+            );
+        }
+    }
 
-	Dictionary<string, int> cachedReuseIds = new ();
-	int reuseIdCount = 100;
+    readonly ConcurrentDictionary<string, int> cachedReuseIds = new();
+    int reuseIdCount = 100;
 
-	public override int GetItemViewType(int position)
-	{
-		base.GetItemViewType(position);
+    public override int GetItemViewType(int position)
+    {
+        base.GetItemViewType(position);
 
-		var info = positionalViewSelector.GetInfo(position);
+        var info = positionalViewSelector.GetInfo(position);
 
-		var data = info.Kind switch {
-			PositionKind.Item =>
-				positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
-			PositionKind.SectionHeader =>
-				positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
-			PositionKind.SectionFooter =>
-				positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
-			_ => null
-		};
+        var data = info.Kind switch
+        {
+            PositionKind.Item
+                => positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
+            PositionKind.SectionHeader
+                => positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+            PositionKind.SectionFooter
+                => positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+            _ => null
+        };
 
-		var reuseId = positionalViewSelector.ViewSelector.GetReuseId(info, data);
+        var reuseId = positionalViewSelector.ViewSelector.GetReuseId(info, data);
 
-		int vt = -1;
+        int vt = cachedReuseIds.GetOrAdd(reuseId, _ => ++reuseIdCount);
 
-		lock (lockObj)
-		{
-			if (!cachedReuseIds.TryGetValue(reuseId, out var reuseIdNumber))
-			{
-				reuseIdNumber = ++reuseIdCount;
-				cachedReuseIds.Add(reuseId, reuseIdNumber);
-			}
+        return vt;
+    }
 
-			vt = reuseIdNumber;
-		}
+    public override long GetItemId(int position) => RecyclerView.NoId;
 
-		return vt;
-	}
+    public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
+    {
+        var viewHolder = new RvItemHolder(handler.MauiContext, handler.VirtualView.Orientation);
 
-	public override long GetItemId(int position)
-		=> RecyclerView.NoId;
+        clickListener = new RvViewHolderClickListener(
+            viewHolder,
+            rvh =>
+            {
+                if (rvh.PositionInfo == null || rvh.PositionInfo.Kind != PositionKind.Item)
+                    return;
 
-	public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
-	{
-		var viewHolder = new RvItemHolder(handler.MauiContext, handler.VirtualView.Orientation);
+                var p = new ItemPosition(rvh.PositionInfo.SectionIndex, rvh.PositionInfo.ItemIndex);
 
-		clickListener = new RvViewHolderClickListener(viewHolder, rvh =>
-		{
-			if (rvh.PositionInfo == null || rvh.PositionInfo.Kind != PositionKind.Item)
-				return;
+                rvh.PositionInfo.IsSelected = !rvh.PositionInfo.IsSelected;
 
-			var p = new ItemPosition(rvh.PositionInfo.SectionIndex, rvh.PositionInfo.ItemIndex);
+                if (rvh.VirtualView is IPositionInfo positionInfo)
+                    positionInfo.IsSelected = rvh.PositionInfo.IsSelected;
 
-			rvh.PositionInfo.IsSelected = !rvh.PositionInfo.IsSelected;
-			
-			if (rvh.VirtualView is IPositionInfo positionInfo)
-				positionInfo.IsSelected = rvh.PositionInfo.IsSelected;
+                if (rvh.PositionInfo.IsSelected)
+                    handler?.VirtualView?.SelectItem(p);
+                else
+                    handler?.VirtualView?.DeselectItem(p);
+            }
+        );
 
-			if (rvh.PositionInfo.IsSelected)
-				handler?.VirtualView?.SelectItem(p);
-			else
-				handler?.VirtualView?.DeselectItem(p);
-		});
+        viewHolder.ItemView.SetOnClickListener(clickListener);
 
-		viewHolder.ItemView.SetOnClickListener(clickListener);
+        return viewHolder;
+    }
 
-		return viewHolder;
-	}
-
-	public void Reset()
-	{
-		cachedItemCount = null;
-		//lock (lockObj)
-		//{
-		//	cachedReuseIds.Clear();
-		//}
-	}
+    public void Reset()
+    {
+        cachedItemCount = null;
+        //lock (lockObj)
+        //{
+        //	cachedReuseIds.Clear();
+        //}
+    }
 }
