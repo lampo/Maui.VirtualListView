@@ -33,11 +33,40 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
         if (NativeView is null)
         {
             NativeView = view.ToPlatform(MauiContext);
-            if (NativeView.Parent is ViewGroup parent)
+            try
             {
-                parent.RemoveView(NativeView);
+                if (NativeView.Parent is ViewGroup parent)
+                {
+                    parent.RemoveView(NativeView);
+                }
+
+                AddView(NativeView);
             }
-            AddView(NativeView);
+            catch (Java.Lang.IllegalStateException e)
+            {
+                var breadcrumbData = new Dictionary<string, object>
+                {
+                    { "ViewType", view.GetType().FullName },
+                    { "ViewId", NativeView.Id },
+                    { "VirtualViewType", VirtualView?.GetType().FullName ?? "null" },
+                    { "ParentViewType", NativeView.Parent?.GetType().FullName ?? "null" },
+                    { "ParentViewId", (NativeView.Parent as AView)?.Id ?? -1 },
+                    { "ContainerId", this.Id },
+                    { "Context", MauiContext.Context?.ToString() ?? "null" }
+                };
+
+                Bugsnag.Maui.BugsnagMaui.Current?.LeaveBreadcrumb(
+                    "IllegalStateException in RvViewContainer.SetupView",
+                    breadcrumbData
+                );
+                Bugsnag.Maui.BugsnagMaui.Current?.Notify(e);
+                if (NativeView.Parent is ViewGroup parent)
+                {
+                    parent.RemoveView(NativeView);
+                }
+
+                AddView(NativeView);
+            }
         }
 
         if (VirtualView is null)
