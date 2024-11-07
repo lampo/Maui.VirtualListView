@@ -72,7 +72,6 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
         if (VirtualView is null)
         {
             VirtualView = view;
-            AddView(NativeView);
         }
     }
 }
