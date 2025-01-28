@@ -19,6 +19,8 @@ internal class CvDataSource : UICollectionViewDataSource
 	readonly ReusableIdManager sectionHeaderIdManager = new ReusableIdManager("SectionHeader", new NSString("SectionHeader"));
 	readonly ReusableIdManager sectionFooterIdManager = new ReusableIdManager("SectionFooter", new NSString("SectionFooter"));
 
+	nint? cachedCount;
+
 	public override nint NumberOfSections(UICollectionView collectionView)
 		=> 1;
 	
@@ -99,8 +101,12 @@ internal class CvDataSource : UICollectionViewDataSource
 			Handler?.VirtualView?.DeselectItem(p);
 	}
 
+	public void ReloadData()
+	{
+        cachedCount = null;
+    }
 	public override nint GetItemsCount(UICollectionView collectionView, nint section)
 	{
-		return Handler?.PositionalViewSelector?.TotalCount ?? 0;
+		return cachedCount ??= Handler?.PositionalViewSelector?.TotalCount ?? 0;
 	}
 }

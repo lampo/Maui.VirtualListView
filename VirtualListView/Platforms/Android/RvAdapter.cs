@@ -46,15 +46,16 @@ internal partial class RvAdapter : RecyclerView.Adapter
 	public override void OnViewDetachedFromWindow(Java.Lang.Object holder)
 	{
 		if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
-			handler.VirtualView.ViewSelector.ViewDetached(rvItemHolder.PositionInfo, rvItemHolder.ViewContainer.VirtualView);
+        {
+            handler.VirtualView.ViewSelector.ViewDetached(rvItemHolder.PositionInfo, rvItemHolder.ViewContainer.VirtualView);
+        }
 
-		base.OnViewDetachedFromWindow(holder);
+        base.OnViewDetachedFromWindow(holder);
 	}
 
 	public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
 	{
 		var info = positionalViewSelector.GetInfo(position);
-
 		if (info == null)
 			return;
 
@@ -87,13 +88,11 @@ internal partial class RvAdapter : RecyclerView.Adapter
 		}
 	}
 
-	Dictionary<string, int> cachedReuseIds = new ();
-	int reuseIdCount = 100;
+    private readonly Dictionary<string, int> cachedReuseIds = new ();
+	private int reuseIdCount = 100;
 
 	public override int GetItemViewType(int position)
 	{
-		base.GetItemViewType(position);
-
 		var info = positionalViewSelector.GetInfo(position);
 
 		var data = info.Kind switch {
@@ -124,12 +123,11 @@ internal partial class RvAdapter : RecyclerView.Adapter
 		return vt;
 	}
 
-	public override long GetItemId(int position)
-		=> RecyclerView.NoId;
+	public override long GetItemId(int position) => RecyclerView.NoId;
 
-	public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
+    public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
 	{
-		var viewHolder = new RvItemHolder(handler.MauiContext, handler.VirtualView.Orientation);
+        var viewHolder = new RvItemHolder(handler.MauiContext, handler.VirtualView.Orientation);
 
 		clickListener = new RvViewHolderClickListener(viewHolder, rvh =>
 		{

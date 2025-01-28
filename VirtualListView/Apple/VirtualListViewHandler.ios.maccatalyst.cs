@@ -246,15 +246,37 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 	{
 		this.PlatformView.InvokeOnMainThread(() => {
 			//layout?.InvalidateLayout();
+            var originalFirstVisibleItemIndexPath = PlatformView.IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
+            var positionDelta = GetCurrentScrollPositionDelta();
 
 			UpdateEmptyViewVisibility();
 
 			//PlatformView?.SetNeedsLayout();
+			dataSource?.ReloadData();
 			PlatformView?.ReloadData();
-			//PlatformView?.LayoutIfNeeded();
+			
+            // Adjust the scroll position
+            var availablePositions = GetNumberOfAvailableScrollPositions();
+            if (originalFirstVisibleItemIndexPath != null && originalFirstVisibleItemIndexPath.Row > availablePositions)
+            {
+                var newIndexPath = NSIndexPath.FromRowSection(availablePositions - positionDelta, originalFirstVisibleItemIndexPath.Section);
+                PlatformView.ScrollToItem(newIndexPath, UICollectionViewScrollPosition.Top, false);
+            }
 		});
 		
 	}
+
+    private int GetCurrentScrollPositionDelta()
+    {
+        var availablePositions = GetNumberOfAvailableScrollPositions();
+        var firstVisibleItemIndexPath = PlatformView.IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
+        return firstVisibleItemIndexPath != null ? availablePositions - firstVisibleItemIndexPath.Row : 0;
+    }
+
+    private int GetNumberOfAvailableScrollPositions()
+    {
+        return (int)(dataSource?.GetItemsCount(PlatformView, 0) ?? 0);
+    }
 	
 	public IReadOnlyList<IPositionInfo> FindVisiblePositions()
 	{

@@ -33,45 +33,61 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
         if (NativeView is null)
         {
             NativeView = view.ToPlatform(MauiContext);
-            try
+            
+            if (NativeView.Parent is ViewGroup parent)
             {
-                if (NativeView.Parent is ViewGroup parent)
-                {
-                    parent.RemoveView(NativeView);
-                }
-
-                AddView(NativeView);
+                parent.RemoveView(NativeView);
             }
-            catch (Java.Lang.IllegalStateException e)
-            {
-                var breadcrumbData = new Dictionary<string, object>
-                {
-                    { "ViewType", view.GetType().FullName },
-                    { "ViewId", NativeView.Id },
-                    { "VirtualViewType", VirtualView?.GetType().FullName ?? "null" },
-                    { "ParentViewType", NativeView.Parent?.GetType().FullName ?? "null" },
-                    { "ParentViewId", (NativeView.Parent as AView)?.Id ?? -1 },
-                    { "ContainerId", this.Id },
-                    { "Context", MauiContext.Context?.ToString() ?? "null" }
-                };
 
-                Bugsnag.Maui.BugsnagMaui.Current?.LeaveBreadcrumb(
-                    "IllegalStateException in RvViewContainer.SetupView",
-                    breadcrumbData
-                );
-                Bugsnag.Maui.BugsnagMaui.Current?.Notify(e);
-                if (NativeView.Parent is ViewGroup parent)
-                {
-                    parent.RemoveView(NativeView);
-                }
-
-                AddView(NativeView);
-            }
+            AddView(NativeView);
         }
 
         if (VirtualView is null)
         {
             VirtualView = view;
         }
+    }
+
+    protected override void OnMeasure(int widthMeasureSpec, int heightMeasureSpec)
+    {
+        if (NativeView != null)
+        {
+            MeasureChild(NativeView, widthMeasureSpec, heightMeasureSpec);
+            SetMeasuredDimension(
+                NativeView.MeasuredWidth,
+                NativeView.MeasuredHeight
+            );
+        }
+        else
+        {
+            base.OnMeasure(widthMeasureSpec, heightMeasureSpec);
+        }
+    }
+
+    protected override void OnLayout(bool changed, int left, int top, int right, int bottom)
+    {
+        if (NativeView != null)
+        {
+            NativeView.Layout(0, 0, right - left, bottom - top);
+        }
+        else
+        {
+            base.OnLayout(changed, left, top, right, bottom);
+        }
+    }
+
+
+    protected override void OnAttachedToWindow()
+    {
+        if (this.ChildCount == 0)
+        {
+            if (NativeView.Parent is ViewGroup parent)
+            {
+                parent.RemoveView(NativeView);
+            }
+            AddView(NativeView);
+        }
+
+        base.OnAttachedToWindow();
     }
 }

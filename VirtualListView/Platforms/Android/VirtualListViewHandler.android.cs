@@ -57,7 +57,8 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 		recyclerView.SetLayoutManager(layoutManager);
 		recyclerView.SetAdapter(adapter);
-		recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
+		recyclerView.SetItemViewCacheSize(10);
+        recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
 			ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
 	}
 
@@ -73,10 +74,33 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 	public void InvalidateData()
 	{
+		int originalFirstVisibleItemPosition = layoutManager.FindFirstVisibleItemPosition();
+        int positionDelta = GetCurrentScrollPositionDelta();
 		UpdateEmptyViewVisibility();
-		adapter?.Reset();
-		adapter?.NotifyDataSetChanged();
+
+		recyclerView.Post(() => {
+			adapter?.Reset();
+			adapter?.NotifyDataSetChanged();
+			
+            var avialablePositions = GetNumberOfAvailableScrollPositions();
+            
+			if (originalFirstVisibleItemPosition > avialablePositions)
+			{
+                recyclerView.ScrollToPosition(avialablePositions - positionDelta);
+			}            
+        });
 	}
+
+    private int GetCurrentScrollPositionDelta()
+    {
+        var avialablePositions = GetNumberOfAvailableScrollPositions();
+        return avialablePositions - layoutManager.FindFirstVisibleItemPosition();
+    }
+
+    private int GetNumberOfAvailableScrollPositions()
+    {
+        return adapter?.ItemCount ?? 0;
+    }
 
 	void PlatformScrollToItem(ItemPosition itemPosition, bool animated)
 	{
