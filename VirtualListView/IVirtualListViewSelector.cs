@@ -8,7 +8,10 @@ public interface IVirtualListViewSelector
 
 	IView? CreateView(PositionInfo position, object? data);
 	void RecycleView(PositionInfo position, object? data, IView view);
-	string GetReuseId(PositionInfo position, object? data);
+
+    string GetReuseId(PositionInfo position, object? data);
+
+    (string reuseId, object? view) GetReuseIdAndView(PositionInfo position, object? data);
 
 	void ViewDetached(PositionInfo position, IView view)
 	{ }
