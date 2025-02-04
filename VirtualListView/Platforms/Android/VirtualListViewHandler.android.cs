@@ -2,6 +2,8 @@
 using Android.Widget;
 using AndroidX.RecyclerView.Widget;
 using AndroidX.SwipeRefreshLayout.Widget;
+using Microsoft.Maui.Controls.PlatformConfiguration;
+using Microsoft.Maui.Controls.Platforms.Android;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
 
@@ -28,7 +30,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 		rootLayout ??= new FrameLayout(Context);
         recyclerView ??= CreateRecyclerView();
 
-		if (swipeRefreshLayout is null)
+        if (swipeRefreshLayout is null)
 		{
 			swipeRefreshLayout = CreateSwipeRefreshLayout();
 			swipeRefreshLayout.AddView(recyclerView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
@@ -67,8 +69,11 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 			VirtualView?.Scrolled(x, y);
 		}));
 		
-		recyclerView.SetLayoutManager(layoutManager);
-		recyclerView.SetAdapter(adapter);		
+		var itemTouchHelper = new ItemTouchHelper(new RvItemTouchHelperCallback(adapter, swipeRefreshLayout));
+        itemTouchHelper.AttachToRecyclerView(recyclerView);
+
+        recyclerView.SetLayoutManager(layoutManager);
+		recyclerView.SetAdapter(adapter);
         recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
 			ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
 	}
@@ -90,8 +95,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 		UpdateEmptyViewVisibility();
 
 		recyclerView.Post(() => {
-			adapter?.Reset();
-			adapter?.NotifyDataSetChanged();
+			adapter?.InvalidateData();			
 			
             var avialablePositions = GetNumberOfAvailableScrollPositions();
             

@@ -10,7 +10,7 @@ sealed class RvViewContainer : Android.Widget.FrameLayout
         : base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))
     {
         MauiContext = context;
-        Id = AView.GenerateViewId();
+        Id = AView.GenerateViewId();;
     }
 
     public readonly IMauiContext MauiContext;

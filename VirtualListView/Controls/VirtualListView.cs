@@ -424,4 +424,9 @@ public partial class VirtualListView : View, IVirtualListView, IVirtualListViewS
 #endif
         return [];
     }
+
+    public bool OnItemMoved(int fromSection, int fromIndex, int toSection, int toIndex)
+    {
+        return true;
+    }
 }

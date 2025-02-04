@@ -1,6 +1,8 @@
 ﻿using Android.Content;
 using Android.Views;
 using AndroidX.RecyclerView.Widget;
+using Microsoft.Maui.Adapters;
+using static Android.Icu.Text.Transliterator;
 
 namespace Microsoft.Maui;
 
@@ -17,8 +19,6 @@ internal partial class RvAdapter : RecyclerView.Adapter
     RvViewHolderClickListener clickListener;
 
     public Context Context { get; }
-
-    public object BindingContext { get; set; }
 
     int? cachedItemCount = null;
 
@@ -169,21 +169,60 @@ internal partial class RvAdapter : RecyclerView.Adapter
         return viewHolder;
     }
 
-    public void Reset()
+    private bool suspendNotifications = false;
+
+    public void InvalidateData()
     {
         cachedItemCount = null;
+        if (suspendNotifications)
+            return;
+        this.NotifyDataSetChanged();
         //lock (lockObj)
         //{
         //	cachedReuseIds.Clear();
         //}
     }
 
-    private IView? CreateContent(object viewOrTemplate)
+    private static IView? CreateContent(object viewOrTemplate)
     {
         if (viewOrTemplate is DataTemplate template)
         {
             return template.CreateContent() as IView;
         }
         return viewOrTemplate as IView;
+    }
+
+    public bool OnItemMove(int fromPositionIndex, int toPositionIndex)
+    {
+        var fromPosition = positionalViewSelector.GetInfo(fromPositionIndex);
+        var toPosition = positionalViewSelector.GetInfo(toPositionIndex);
+
+        if (fromPosition.Kind != toPosition.Kind)
+        {
+            return false;
+        }
+        suspendNotifications = true;
+
+        if (!((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnMoveItem(fromPosition, toPosition))
+        {
+            return false;
+        }
+
+        this.NotifyItemMoved(fromPositionIndex, toPositionIndex);
+
+        return true;
+    }
+
+    public bool CanReorderItem(PositionInfo position)
+    {
+        return ((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).CanReorderItem(position);
+    }
+
+    public void OnDrop(RvItemHolder itemHolder)
+    {
+        var info = positionalViewSelector.GetInfo(itemHolder.AbsoluteAdapterPosition);
+
+        suspendNotifications = false;        
+        ((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnReorderComplete(itemHolder.PositionInfo.SectionIndex, itemHolder.PositionInfo.ItemIndex, info.SectionIndex, info.ItemIndex);
     }
 }
