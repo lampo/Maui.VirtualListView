@@ -7,64 +7,66 @@ namespace Microsoft.Maui;
 
 internal class CvLayout : UICollectionViewFlowLayout
 {
-	public CvLayout(VirtualListViewHandler handler) : base()
-	{
-		Handler = handler;
-		isiOS11 = UIDevice.CurrentDevice.CheckSystemVersion(11, 0);
-	}
+    public CvLayout(VirtualListViewHandler handler)
+    {
+        Handler = handler;
+        isiOS11 = UIDevice.CurrentDevice.CheckSystemVersion(11, 0);
+    }
 
-	readonly VirtualListViewHandler Handler;
+    readonly VirtualListViewHandler Handler;
 
-	readonly bool isiOS11;
+    readonly bool isiOS11;
 
 
-	public override UICollectionViewLayoutAttributes LayoutAttributesForItem(NSIndexPath path)
-	{
-		var layoutAttributes = base.LayoutAttributesForItem(path);
+    public override UICollectionViewLayoutAttributes LayoutAttributesForItem(NSIndexPath path)
+    {
+        Console.WriteLine("LayoutAttributesForItem");
+        var layoutAttributes = base.LayoutAttributesForItem(path);
 
-		if (Handler.VirtualView.Orientation == ListOrientation.Vertical)
-		{
-			var x = SectionInset.Left;
+        if (Handler.VirtualView.Orientation == ListOrientation.Vertical)
+        {
+            var x = SectionInset.Left;
 
-			NFloat width;
+            NFloat width;
 
-			if (isiOS11)
-				width = CollectionView.SafeAreaLayoutGuide.LayoutFrame.Width - SectionInset.Left - SectionInset.Right;
-			else
-				width = CollectionView.Bounds.Width - SectionInset.Left - SectionInset.Right;
+            if (isiOS11)
+                width = CollectionView.SafeAreaLayoutGuide.LayoutFrame.Width - SectionInset.Left - SectionInset.Right;
+            else
+                width = CollectionView.Bounds.Width - SectionInset.Left - SectionInset.Right;
 
-			layoutAttributes.Frame = new CGRect(x, layoutAttributes.Frame.Y, width, layoutAttributes.Frame.Height);
-		}
-		else
-		{
-			var y = SectionInset.Top;
+            layoutAttributes.Frame = new CGRect(x, layoutAttributes.Frame.Y, width, layoutAttributes.Frame.Height);
+        }
+        else
+        {
+            var y = SectionInset.Top;
 
-			NFloat height;
+            NFloat height;
 
-			if (isiOS11)
-				height = CollectionView.SafeAreaLayoutGuide.LayoutFrame.Height - SectionInset.Top - SectionInset.Bottom;
-			else
-				height = CollectionView.Bounds.Height - SectionInset.Top - SectionInset.Bottom;
+            if (isiOS11)
+                height = CollectionView.SafeAreaLayoutGuide.LayoutFrame.Height - SectionInset.Top - SectionInset.Bottom;
+            else
+                height = CollectionView.Bounds.Height - SectionInset.Top - SectionInset.Bottom;
 
-			layoutAttributes.Frame = new CGRect(layoutAttributes.Frame.X, y, layoutAttributes.Frame.Width, height);
-		}
+            layoutAttributes.Frame = new CGRect(layoutAttributes.Frame.X, y, layoutAttributes.Frame.Width, height);
+        }     
 
-		return layoutAttributes;
-	}
+        return layoutAttributes;
+    }
 
-	public override UICollectionViewLayoutAttributes[] LayoutAttributesForElementsInRect(CGRect rect)
-	{
-		var layoutAttributesObjects = base.LayoutAttributesForElementsInRect(rect);
+    public override UICollectionViewLayoutAttributes[] LayoutAttributesForElementsInRect(CGRect rect)
+    {
+        Console.WriteLine("LayoutAttributesForElementsInRect");
+        var layoutAttributesObjects = base.LayoutAttributesForElementsInRect(rect);
 
-		foreach (var layoutAttributes in layoutAttributesObjects)
-		{
-			if (layoutAttributes.RepresentedElementCategory == UICollectionElementCategory.Cell)
-			{
-				var newFrame = LayoutAttributesForItem(layoutAttributes.IndexPath).Frame;
-				layoutAttributes.Frame = newFrame;
-			}
-		}
-
-		return layoutAttributesObjects;
-	}
+        foreach (var layoutAttributes in layoutAttributesObjects)
+        {
+            if (layoutAttributes.RepresentedElementCategory == UICollectionElementCategory.Cell)
+            {
+                var newFrame = LayoutAttributesForItem(layoutAttributes.IndexPath).Frame;
+                layoutAttributes.Frame = newFrame;
+            }
+        }
+        
+        return layoutAttributesObjects;
+    }
 }

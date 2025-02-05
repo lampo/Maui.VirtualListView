@@ -49,10 +49,9 @@ internal class CvCell : UICollectionViewCell
 
 			return v;
 		}
-
 	}
 
-	[Export("keyCommandSelect")]
+    [Export("keyCommandSelect")]
 	public void KeyCommandSelect()
 	{
 		InvokeTap();
@@ -80,18 +79,26 @@ internal class CvCell : UICollectionViewCell
 		}
 	}
 
+	private UICollectionViewLayoutAttributes? cachedLayoutAttributes;
+
 	public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(UICollectionViewLayoutAttributes layoutAttributes)
 	{
-		if ((NativeView is not null && NativeView.TryGetTarget(out var _))
-			&& (VirtualView is not null && VirtualView.TryGetTarget(out var virtualView)))
+		if (Handler.IsDragging && cachedLayoutAttributes is not null)
+        {
+            return cachedLayoutAttributes;
+        }
+
+        if ((NativeView is not null && NativeView.TryGetTarget(out var _))
+            && (VirtualView is not null && VirtualView.TryGetTarget(out var virtualView)))
 		{
 			var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
 
 			layoutAttributes.Frame = new CGRect(0, layoutAttributes.Frame.Y, layoutAttributes.Frame.Width, measure.Height);
-
-			return layoutAttributes;
+            cachedLayoutAttributes = layoutAttributes;
+            return layoutAttributes;
 		}
 
+        cachedLayoutAttributes = layoutAttributes;
 		return layoutAttributes;
 	}
 
@@ -110,6 +117,7 @@ internal class CvCell : UICollectionViewCell
 		base.PrepareForReuse();
 
 		// TODO: Recycle
+		cachedLayoutAttributes = null;
 		if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
 			&& (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
 		{

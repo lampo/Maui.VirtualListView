@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using Foundation;
+using Microsoft.Maui.Adapters;
 using UIKit;
 
 namespace Microsoft.Maui;
@@ -21,7 +22,9 @@ internal class CvDataSource : UICollectionViewDataSource
 
 	nint? cachedCount;
 
-	public override nint NumberOfSections(UICollectionView collectionView)
+    public bool SuspendReload { get; set; }
+
+    public override nint NumberOfSections(UICollectionView collectionView)
 		=> 1;
 	
 	public override UICollectionViewCell GetCell(UICollectionView collectionView, NSIndexPath indexPath)
@@ -108,5 +111,20 @@ internal class CvDataSource : UICollectionViewDataSource
 	public override nint GetItemsCount(UICollectionView collectionView, nint section)
 	{
 		return cachedCount ??= Handler?.PositionalViewSelector?.TotalCount ?? 0;
+	}
+
+    public override bool CanMoveItem(UICollectionView collectionView, NSIndexPath indexPath)
+    {
+        return true;
+    }
+
+    public override void MoveItem(UICollectionView collectionView, NSIndexPath sourceIndexPath, NSIndexPath destinationIndexPath)
+    {
+        var sourceInfo = Handler?.PositionalViewSelector?.GetInfo(sourceIndexPath.Item.ToInt32());
+        var destinationInfo = Handler?.PositionalViewSelector?.GetInfo(destinationIndexPath.Item.ToInt32());
+
+		var adapter = Handler?.PositionalViewSelector?.Adapter as IReorderableVirtualListViewAdapter;
+
+		adapter.OnMoveItem(sourceInfo, destinationInfo);
 	}
 }

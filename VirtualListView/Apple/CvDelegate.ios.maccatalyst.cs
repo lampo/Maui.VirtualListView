@@ -6,18 +6,21 @@ namespace Microsoft.Maui;
 
 internal class CvDelegate : UICollectionViewDelegateFlowLayout
 {
-	public CvDelegate(VirtualListViewHandler handler, UICollectionView collectionView)
+	public CvDelegate(VirtualListViewHandler handler, VirtualListViewController viewController)
 		: base()
 	{
 		Handler = handler;
-		NativeCollectionView = new WeakReference<UICollectionView>(collectionView);
+        this.viewController = viewController;
+		var collectionView = viewController.CollectionView;
+        NativeCollectionView = new WeakReference<UICollectionView>(collectionView);
 		collectionView.RegisterClassForCell(typeof(CvCell), CvCell.ReuseIdUnknown);
 	}
 
 	internal readonly WeakReference<UICollectionView> NativeCollectionView;
 	internal readonly VirtualListViewHandler Handler;
+    private readonly VirtualListViewController viewController;
 
-	public Action<NFloat, NFloat> ScrollHandler { get; set; }
+    public Action<NFloat, NFloat> ScrollHandler { get; set; }
 
 	public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
 		=> HandleSelection(collectionView, indexPath, true);
@@ -63,4 +66,29 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 		var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
 		return (info?.Kind ?? PositionKind.Header) == PositionKind.Item;
 	}
+
+    public override NSIndexPath GetTargetIndexPathForMove(UICollectionView collectionView, NSIndexPath originalIndexPath, NSIndexPath proposedIndexPath)
+    {
+		Console.WriteLine("GetTargetIndexPathForMove");
+        NSIndexPath targetIndexPath;
+		return proposedIndexPath;
+        //var itemsView = viewController?.Item;
+        //if (itemsView?.IsGrouped == true)
+        //{
+        //    if (originalIndexPath.Section == proposedIndexPath.Section || itemsView.CanMixGroups)
+        //    {
+        //        targetIndexPath = proposedIndexPath;
+        //    }
+        //    else
+        //    {
+        //        targetIndexPath = originalIndexPath;
+        //    }
+        //}
+        //else
+        //{
+        //    targetIndexPath = proposedIndexPath;
+        //}
+
+        //return targetIndexPath;
+    }
 }

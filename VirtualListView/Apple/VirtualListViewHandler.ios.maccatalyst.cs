@@ -7,29 +7,18 @@ using UIKit;
 
 namespace Microsoft.Maui;
 
-public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICollectionView>
+public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIView>
 {
 	CvDataSource? dataSource;
 	CvLayout? layout;
 	CvDelegate? cvdelegate;
 	UIRefreshControl? refreshControl;
 
-	protected override UICollectionView CreatePlatformView()
+	protected override UIView CreatePlatformView()
 	{
-		layout = new (this);
-		layout.ScrollDirection = VirtualView.Orientation switch
-		{
-			ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
-			ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
-			_ => UICollectionViewScrollDirection.Vertical
-		};
-		layout.EstimatedItemSize = UICollectionViewFlowLayout.AutomaticSize;
-		layout.ItemSize = UICollectionViewFlowLayout.AutomaticSize;
-		layout.SectionInset = new UIEdgeInsets(0, 0, 0, 0);
-		layout.MinimumInteritemSpacing = 0f;
-		layout.MinimumLineSpacing = 0f;
+		Controller = new VirtualListViewController(this);
 
-		var collectionView = new UICollectionView(CGRect.Empty, layout);
+		var collectionView = this.Controller.CollectionView;
 		//collectionView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
 		collectionView.AllowsMultipleSelection = false;
 		collectionView.AllowsSelection = false;
@@ -58,27 +47,31 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 		//collectionView.ScrollIndicatorInsets = new UIEdgeInsets(0, 0, 0, 0);
 		//collectionView.AutomaticallyAdjustsScrollIndicatorInsets = false;
 
-		return collectionView;
+		return Controller.CollectionView;
 	}
 
-	protected override void ConnectHandler(UICollectionView nativeView)
+    public VirtualListViewController Controller { get; private set; }
+
+    protected override void ConnectHandler(UIView nativeView)
 	{
 		base.ConnectHandler(nativeView);
 
-		PositionalViewSelector = new PositionalViewSelector(VirtualView);
+		var collectionView = nativeView as UICollectionView;
 
-		dataSource = new CvDataSource(this);
-		
-		cvdelegate = new CvDelegate(this, nativeView);
-		cvdelegate.ScrollHandler = (x, y) => VirtualView?.Scrolled(x, y);
+        PositionalViewSelector = new PositionalViewSelector(VirtualView);
 
-		nativeView.DataSource = dataSource;
-		nativeView.Delegate = cvdelegate;
+		//dataSource = new CvDataSource(this);
 		
-		nativeView.ReloadData();
+		//cvdelegate = new CvDelegate(this, collectionView);
+		// ((CvDelegate)collectionView.Delegate).ScrollHandler = (x, y) => VirtualView?.Scrolled(x, y);
+
+		//collectionView.DataSource = dataSource;
+		//collectionView.Delegate = cvdelegate;
+		
+		collectionView.ReloadData();
 	}
 
-	protected override void DisconnectHandler(UICollectionView nativeView)
+	protected override void DisconnectHandler(UIView nativeView)
 	{
 		if (dataSource is not null)
 		{
@@ -112,7 +105,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 	}
 
 	internal CvCell? GetCell(NSIndexPath indexPath)
-		=> dataSource?.GetCell(PlatformView, indexPath) as CvCell;
+		=> dataSource?.GetCell(PlatformView as UICollectionView, indexPath) as CvCell;
 
 	public static void MapHeader(VirtualListViewHandler handler, IVirtualListView virtualListView)
 		=> handler?.InvalidateData();
@@ -139,7 +132,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 
 		var indexPath = NSIndexPath.FromItemSection(realIndex, 0);
 
-		PlatformView.ScrollToItem(indexPath, UICollectionViewScrollPosition.Top, animated);
+		((UICollectionView)PlatformView).ScrollToItem(indexPath, UICollectionViewScrollPosition.Top, animated);
 	}
 
 	void PlatformUpdateItemSelection(ItemPosition itemPosition, bool selected)
@@ -149,7 +142,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 		if (realIndex < 0)
 			return;
 
-		var cell = PlatformView.CellForItem(NSIndexPath.FromItemSection(realIndex, 0));
+		var cell = ((UICollectionView)PlatformView).CellForItem(NSIndexPath.FromItemSection(realIndex, 0));
 
 		if (cell is CvCell cvcell)
 		{
@@ -207,11 +200,11 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 
 	void UpdateEmptyViewVisibility()
 	{
-		if (PlatformView is not null && PlatformView.BackgroundView is not null)
+		if (PlatformView is not null && ((UICollectionView)PlatformView).BackgroundView is not null)
 		{
 			var visibility = ShouldShowEmptyView ? Visibility.Visible : Visibility.Collapsed;
 
-			PlatformView.BackgroundView?.UpdateVisibility(visibility);
+            ((UICollectionView)PlatformView).BackgroundView?.UpdateVisibility(visibility);
 		}
 	}
 
@@ -219,14 +212,14 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 	{
 		if (PlatformView is not null)
 		{
-			if (PlatformView.BackgroundView is not null)
+			if (((UICollectionView)PlatformView).BackgroundView is not null)
 			{
-				PlatformView.BackgroundView.RemoveFromSuperview();
-				PlatformView.BackgroundView.Dispose();
+                ((UICollectionView)PlatformView).BackgroundView.RemoveFromSuperview();
+                ((UICollectionView)PlatformView).BackgroundView.Dispose();
 			}
 
 			if (MauiContext is not null)
-				PlatformView.BackgroundView = VirtualView?.EmptyView?.ToPlatform(MauiContext);
+				((UICollectionView)PlatformView).BackgroundView = VirtualView?.EmptyView?.ToPlatform(MauiContext);
 
 			UpdateEmptyViewVisibility();
 		}
@@ -234,33 +227,38 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 
 	void UpdateVerticalScrollbarVisibility(ScrollBarVisibility scrollBarVisibility)
 	{
-		PlatformView.ShowsVerticalScrollIndicator = scrollBarVisibility == ScrollBarVisibility.Always || scrollBarVisibility == ScrollBarVisibility.Default;
+		((UICollectionView)PlatformView).ShowsVerticalScrollIndicator = scrollBarVisibility == ScrollBarVisibility.Always || scrollBarVisibility == ScrollBarVisibility.Default;
 	}
 	
 	void UpdateHorizontalScrollbarVisibility(ScrollBarVisibility scrollBarVisibility)
 	{
-		PlatformView.ShowsHorizontalScrollIndicator = scrollBarVisibility == ScrollBarVisibility.Always || scrollBarVisibility == ScrollBarVisibility.Default;
+        ((UICollectionView)PlatformView).ShowsHorizontalScrollIndicator = scrollBarVisibility == ScrollBarVisibility.Always || scrollBarVisibility == ScrollBarVisibility.Default;
 	}
 
 	public void InvalidateData()
 	{
+		if (Controller.DataSource.SuspendReload)
+		{
+			return;
+		}
+
 		this.PlatformView.InvokeOnMainThread(() => {
 			//layout?.InvalidateLayout();
-            var originalFirstVisibleItemIndexPath = PlatformView.IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
+            var originalFirstVisibleItemIndexPath = ((UICollectionView)PlatformView).IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
             var positionDelta = GetCurrentScrollPositionDelta();
 
 			UpdateEmptyViewVisibility();
 
 			//PlatformView?.SetNeedsLayout();
-			dataSource?.ReloadData();
-			PlatformView?.ReloadData();
+			Controller.DataSource?.ReloadData();
+            ((UICollectionView)PlatformView)?.ReloadData();
 			
             // Adjust the scroll position
             var availablePositions = GetNumberOfAvailableScrollPositions();
             if (originalFirstVisibleItemIndexPath != null && originalFirstVisibleItemIndexPath.Row > availablePositions)
             {
                 var newIndexPath = NSIndexPath.FromRowSection(availablePositions - positionDelta, originalFirstVisibleItemIndexPath.Section);
-                PlatformView.ScrollToItem(newIndexPath, UICollectionViewScrollPosition.Top, false);
+                ((UICollectionView)PlatformView).ScrollToItem(newIndexPath, UICollectionViewScrollPosition.Top, false);
             }
 		});
 		
@@ -269,20 +267,20 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
     private int GetCurrentScrollPositionDelta()
     {
         var availablePositions = GetNumberOfAvailableScrollPositions();
-        var firstVisibleItemIndexPath = PlatformView.IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
+        var firstVisibleItemIndexPath = ((UICollectionView)PlatformView).IndexPathsForVisibleItems.OrderBy(ip => ip.Row).FirstOrDefault();
         return firstVisibleItemIndexPath != null ? availablePositions - firstVisibleItemIndexPath.Row : 0;
     }
 
     private int GetNumberOfAvailableScrollPositions()
     {
-        return (int)(dataSource?.GetItemsCount(PlatformView, 0) ?? 0);
+        return (int)(dataSource?.GetItemsCount(((UICollectionView)PlatformView), 0) ?? 0);
     }
 	
 	public IReadOnlyList<IPositionInfo> FindVisiblePositions()
 	{
 		var positions = new List<PositionInfo>();
 			
-		foreach (var cell in PlatformView.VisibleCells)
+		foreach (var cell in ((UICollectionView)PlatformView).VisibleCells)
 		{
 			if (cell is CvCell cvCell)
 				positions.Add(cvCell.PositionInfo);
@@ -290,4 +288,6 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UICo
 
 		return positions;
 	}
+
+    public bool IsDragging { get; set; }
 }
