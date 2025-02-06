@@ -28,11 +28,15 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
         Layout.MinimumLineSpacing = 0f;
 
         DataSource = new CvDataSource(handler);
+        
+        this.Layout.DataSource = DataSource;
+        
         CollectionView.DataSource = DataSource;
         CollectionView.Delegate = new CvDelegate(handler, this);
 
         CollectionView.DragDelegate = this;
         CollectionView.DropDelegate = this;
+        CollectionView.DragInteractionEnabled = false;
 
         // The UICollectionViewController has built-in recognizer for reorder that can be installed by setting "InstallsStandardGestureForInteractiveMovement".
         // For some reason it only seemed to work when the CollectionView was inside the Flyout section of a FlyoutPage.
@@ -44,7 +48,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
     }
 
     internal CvDataSource DataSource { get; }
-
+    
     public override UICollectionView CollectionView
     {
         get
@@ -115,6 +119,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 }
                 gestureRecognizer.CancelsTouchesInView = false;
                 collectionView.BeginInteractiveMovementForItem(indexPath);
+                this.Handler.IsDragging = true;
                 break;
             case UIGestureRecognizerState.Changed:
                 gestureRecognizer.CancelsTouchesInView = true;
@@ -124,11 +129,13 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 collectionView.EndInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
+                this.Layout.InvalidateLayout();
                 break;
             default:
                 collectionView.CancelInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
+                this.Layout.InvalidateLayout();
                 break;
         }
     }

@@ -79,26 +79,21 @@ internal class CvCell : UICollectionViewCell
 		}
 	}
 
-	private UICollectionViewLayoutAttributes? cachedLayoutAttributes;
-
+	CGRect? cachedFrame;
 	public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(UICollectionViewLayoutAttributes layoutAttributes)
 	{
-		if (Handler.IsDragging && cachedLayoutAttributes is not null)
-        {
-            return cachedLayoutAttributes;
-        }
-
+		Console.WriteLine("Preferend Cell Layout Attributes: " + layoutAttributes.Frame);
+		Console.WriteLine("Cached Frame: " + cachedFrame);
         if ((NativeView is not null && NativeView.TryGetTarget(out var _))
             && (VirtualView is not null && VirtualView.TryGetTarget(out var virtualView)))
 		{
 			var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
-
-			layoutAttributes.Frame = new CGRect(0, layoutAttributes.Frame.Y, layoutAttributes.Frame.Width, measure.Height);
-            cachedLayoutAttributes = layoutAttributes;
+			
+			this.cachedFrame = layoutAttributes.Frame = new CGRect(0, layoutAttributes.Frame.Y, layoutAttributes.Frame.Width, measure.Height);
+			Console.WriteLine("New Frame: " + layoutAttributes.Frame);
             return layoutAttributes;
 		}
 
-        cachedLayoutAttributes = layoutAttributes;
 		return layoutAttributes;
 	}
 
@@ -117,7 +112,6 @@ internal class CvCell : UICollectionViewCell
 		base.PrepareForReuse();
 
 		// TODO: Recycle
-		cachedLayoutAttributes = null;
 		if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
 			&& (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
 		{
