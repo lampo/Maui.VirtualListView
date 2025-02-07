@@ -3,36 +3,26 @@ using UIKit;
 
 namespace Microsoft.Maui;
 
-public sealed class VirtualListViewController : UICollectionViewController, IUICollectionViewDragDelegate, IUICollectionViewDropDelegate
+public sealed class VirtualListViewController : UICollectionViewController, IUICollectionViewDragDelegate, IUICollectionViewDropDelegate, IUICollectionViewDelegateFlowLayout
 {
     private VirtualListViewHandler Handler;
     private CvLayout Layout;
 
     UILongPressGestureRecognizer _longPressGestureRecognizer;
+    
+    public Action<nfloat, nfloat> ScrollHandler { get; set; }
 
     public VirtualListViewController(VirtualListViewHandler handler) : base(new CvLayout(handler))
     {
         Handler = handler;
         Layout = (CvLayout)CollectionView.CollectionViewLayout;
 
-        Layout.ScrollDirection = handler.VirtualView.Orientation switch
-        {
-            ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
-            ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
-            _ => UICollectionViewScrollDirection.Vertical
-        };
-        Layout.EstimatedItemSize = UICollectionViewFlowLayout.AutomaticSize;
-        Layout.ItemSize = UICollectionViewFlowLayout.AutomaticSize;
-        Layout.SectionInset = new UIEdgeInsets(0, 0, 0, 0);
-        Layout.MinimumInteritemSpacing = 0f;
-        Layout.MinimumLineSpacing = 0f;
-
         DataSource = new CvDataSource(handler);
         
         this.Layout.DataSource = DataSource;
         
         CollectionView.DataSource = DataSource;
-        CollectionView.Delegate = new CvDelegate(handler, this);
+        CollectionView.Delegate = this;
 
         CollectionView.DragDelegate = this;
         CollectionView.DropDelegate = this;
@@ -78,6 +68,15 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
         //base.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
     }
 
+    public override NSIndexPath GetTargetIndexPathForMove(UICollectionView collectionView,
+                                                          NSIndexPath originalIndexPath,
+                                                          NSIndexPath proposedIndexPath)
+    {
+        this.Layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
+        
+        return proposedIndexPath;
+    }
+
     // Allow dropping and reordering
     public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
     {
@@ -96,6 +95,51 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 }, null);
             }
         }
+    }
+    
+    public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
+        => HandleSelection(collectionView, indexPath, true);
+
+    public override void ItemDeselected(UICollectionView collectionView, NSIndexPath indexPath)
+        => HandleSelection(collectionView, indexPath, false);
+
+    void HandleSelection(UICollectionView collectionView, NSIndexPath indexPath, bool selected)
+    {
+        //UIView.AnimationsEnabled = false;
+        if (collectionView.CellForItem(indexPath) is CvCell selectedCell
+            && (selectedCell.PositionInfo?.Kind ?? PositionKind.Header) == PositionKind.Item)
+        {
+            selectedCell.UpdateSelected(selected);
+
+            if (selectedCell.PositionInfo is not null)
+            {
+                var itemPos = new ItemPosition(
+                    selectedCell.PositionInfo.SectionIndex,
+                    selectedCell.PositionInfo.ItemIndex);
+
+                if (selected)
+                    Handler?.VirtualView?.SelectItem(itemPos);
+                else
+                    Handler?.VirtualView?.DeselectItem(itemPos);
+            }
+        }
+    }
+    
+    public override void Scrolled(UIScrollView scrollView)
+    {
+        ScrollHandler?.Invoke(scrollView.ContentOffset.X, scrollView.ContentOffset.Y);
+    }
+
+    public override bool ShouldSelectItem(UICollectionView collectionView, NSIndexPath indexPath)
+        => IsRealItem(indexPath);
+
+    public override bool ShouldDeselectItem(UICollectionView collectionView, NSIndexPath indexPath)
+        => IsRealItem(indexPath);
+
+    bool IsRealItem(NSIndexPath indexPath)
+    {
+        var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
+        return (info?.Kind ?? PositionKind.Header) == PositionKind.Item;
     }
 
     void HandleLongPress(UILongPressGestureRecognizer gestureRecognizer)
@@ -129,13 +173,13 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 collectionView.EndInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
-                this.Layout.InvalidateLayout();
+                //this.Layout.InvalidateLayout();
                 break;
             default:
                 collectionView.CancelInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
-                this.Layout.InvalidateLayout();
+                //this.Layout.InvalidateLayout();
                 break;
         }
     }

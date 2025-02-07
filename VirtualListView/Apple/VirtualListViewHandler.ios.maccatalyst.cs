@@ -1,5 +1,4 @@
 ﻿#nullable enable
-using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
@@ -11,7 +10,6 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 {
 	CvDataSource? dataSource;
 	CvLayout? layout;
-	CvDelegate? cvdelegate;
 	UIRefreshControl? refreshControl;
 
 	protected override UIView CreatePlatformView()
@@ -79,10 +77,10 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 			dataSource = null;
 		}
 
-		if (cvdelegate is not null)
+		if (Controller is not null)
 		{
-			cvdelegate.Dispose();
-			cvdelegate = null;
+			Controller.Dispose();
+			Controller = null;
 		}
 
 		if (refreshControl is not null)

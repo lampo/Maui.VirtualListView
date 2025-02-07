@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using CoreGraphics;
 using Foundation;
 using UIKit;
 
@@ -21,7 +22,7 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
     private readonly VirtualListViewController viewController;
 
     public Action<NFloat, NFloat> ScrollHandler { get; set; }
-
+    
 	public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
 		=> HandleSelection(collectionView, indexPath, true);
 
@@ -71,6 +72,8 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
     {
 		Console.WriteLine("GetTargetIndexPathForMove");
         NSIndexPath targetIndexPath;
+        var layout = (CvLayout)collectionView.CollectionViewLayout;
+        layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
 		return proposedIndexPath;
         //var itemsView = viewController?.Item;
         //if (itemsView?.IsGrouped == true)
@@ -91,4 +94,12 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 
         //return targetIndexPath;
     }
+
+  //   public override CGSize GetSizeForItem(UICollectionView collectionView, UICollectionViewLayout layout, NSIndexPath indexPath)
+  //   {
+	 //    
+	 //    var size = base.GetSizeForItem(collectionView, layout, indexPath);
+		// Console.WriteLine($"GetSizeForItem: Path: {indexPath}" + size);
+	 //    return size;
+  //   }
 }

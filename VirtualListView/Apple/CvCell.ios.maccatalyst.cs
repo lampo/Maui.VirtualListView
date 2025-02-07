@@ -16,6 +16,8 @@ internal class CvCell : UICollectionViewCell
 	public PositionInfo PositionInfo { get; private set; }
 
 	public WeakReference<Action<IView>> ReuseCallback { get; set; }
+	
+	public UICollectionViewLayoutAttributes? CachedSize { get; private set; }
 
 	[Export("initWithFrame:")]
 	public CvCell(CGRect frame) : base(frame)
@@ -82,15 +84,15 @@ internal class CvCell : UICollectionViewCell
 	CGRect? cachedFrame;
 	public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(UICollectionViewLayoutAttributes layoutAttributes)
 	{
-		Console.WriteLine("Preferend Cell Layout Attributes: " + layoutAttributes.Frame);
+		Console.WriteLine($"Preferend Cell Layout Attributes: {layoutAttributes.IndexPath} " + layoutAttributes.Frame);
 		Console.WriteLine("Cached Frame: " + cachedFrame);
         if ((NativeView is not null && NativeView.TryGetTarget(out var _))
             && (VirtualView is not null && VirtualView.TryGetTarget(out var virtualView)))
 		{
 			var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
-			
 			this.cachedFrame = layoutAttributes.Frame = new CGRect(0, layoutAttributes.Frame.Y, layoutAttributes.Frame.Width, measure.Height);
 			Console.WriteLine("New Frame: " + layoutAttributes.Frame);
+			this.CachedSize = layoutAttributes;
             return layoutAttributes;
 		}
 
