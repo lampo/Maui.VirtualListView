@@ -84,6 +84,7 @@ internal class CvCell : UICollectionViewCell
 	CGRect? cachedFrame;
 	public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(UICollectionViewLayoutAttributes layoutAttributes)
 	{
+		var item = base.PreferredLayoutAttributesFittingAttributes(layoutAttributes);
 		Console.WriteLine($"Preferend Cell Layout Attributes: {layoutAttributes.IndexPath} " + layoutAttributes.Frame);
 		Console.WriteLine("Cached Frame: " + cachedFrame);
         if ((NativeView is not null && NativeView.TryGetTarget(out var _))

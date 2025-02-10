@@ -13,24 +13,13 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
     {
         Handler = handler;
         isiOS11 = UIDevice.CurrentDevice.CheckSystemVersion(11, 0);
-        this.ScrollDirection = handler.VirtualView.Orientation switch
-        {
-            ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
-            ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
-            _ => UICollectionViewScrollDirection.Vertical,
-        };
-        this.EstimatedItemSize = UICollectionViewFlowLayout.AutomaticSize;
-        this.ItemSize = UICollectionViewFlowLayout.AutomaticSize;
-        this.SectionInset = new UIEdgeInsets(0, 0, 0, 0);
-        this.MinimumInteritemSpacing = 0f;
-        this.MinimumLineSpacing = 0f;
     }
 
     readonly VirtualListViewHandler Handler;
 
     readonly bool isiOS11;
 
-    private Dictionary<(int section, int row), UICollectionViewLayoutAttributes> _cachedSizes = new();
+    private Dictionary<NSIndexPath, UICollectionViewLayoutAttributes> _cachedSizes = new();
     
     public override UICollectionViewLayoutAttributes LayoutAttributesForItem(NSIndexPath path)
     {
@@ -41,19 +30,20 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
         var layoutAttributes = base.LayoutAttributesForItem(path);
         if (this.Handler.IsDragging && this._cachedSizes.TryGetValue(key, out var value))
         {
-            Console.WriteLine("LayoutAttributesForItem " + layoutAttributes.Frame + " -> " + value.Frame);
+            Console.WriteLine("LayoutAttributesForItem cache hit " + layoutAttributes.Frame + " -> " + value.Frame);
             
-            return layoutAttributes;
+            return value;
         }
+        Console.WriteLine("LayoutAttributesForItem " + layoutAttributes.Frame);
         layoutAttributes.Frame = this.GetLayoutAttributesFrame(layoutAttributes);
         return layoutAttributes;
     }
     
-    private (int section, int row) GetIndexPathKey(NSIndexPath path) => (path.Section, path.Row);
+    // private (int section, int row) GetIndexPathKey(NSIndexPath path) => (path.Section, path.Row);
+    private NSIndexPath GetIndexPathKey(NSIndexPath path) => path;
 
     private CGRect GetLayoutAttributesFrame(UICollectionViewLayoutAttributes layoutAttributes)
     {
-        Console.WriteLine("UpdateLayoutAttributes " + layoutAttributes);
         if (Handler.VirtualView.Orientation == ListOrientation.Vertical)
         {
             var x = SectionInset.Left;
@@ -84,18 +74,8 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
     {
         Console.WriteLine("InvalidateLayout");
         base.InvalidateLayout();
-        return;
-        if (!Handler.IsDragging)
-        {
-            this._cachedSizes.Clear();
-            _itemHeights.Clear(); // Only clear heights if not dragging
-        }
-
-        base.InvalidateLayout();
     }
     
-    private Dictionary<(int Section, int Row), nfloat> _itemHeights = new();
-  
     public override void InvalidateLayout(UICollectionViewLayoutInvalidationContext context)
     {
         Console.WriteLine("InvalidateLayout(CONTEXT) invalidate everything: " + context.InvalidateEverything);
@@ -103,30 +83,6 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
         Console.WriteLine("PreviousIndexPathsForInteractivelyMovingItems: " + context.PreviousIndexPathsForInteractivelyMovingItems);
         Console.WriteLine("TargetIndexPathsForInteractivelyMovingItems: " + context.TargetIndexPathsForInteractivelyMovingItems);
         Console.WriteLine("InteractiveMovementTarget: " + context.InteractiveMovementTarget);
-        base.InvalidateLayout(context);
-        return;
-        if (context is RvUiCollectionViewLayoutInvalidationContext { PreviousIndexPathsForInteractivelyMovingItems: null })
-        {
-            return;
-        }
-        
-        if (context is RvUiCollectionViewLayoutInvalidationContext rvContext)
-        {
-            var previousCell = CollectionView.CellForItem(rvContext.PreviousIndexPathsForInteractivelyMovingItems[0]);
-            var targetCell = CollectionView.CellForItem(rvContext.TargetIndexPathsForInteractivelyMovingItems[0]);
-            Console.WriteLine("InvalidateLayout(CONTEXT) " + previousCell + " -> " + targetCell);
-            if (previousCell != null && targetCell != null)
-              {
-                var targetFrame = targetCell.Frame;
-                var previousFrame = previousCell.Frame;
-                Console.WriteLine("InvalidateLayout(CONTEXT) " + previousFrame + " -> " + targetFrame);
-                targetCell.Frame = previousCell.Frame;
-                previousCell.Frame = targetFrame;
-                return;
-            }
-            return;
-        }
-        
         base.InvalidateLayout(context);
     }
 
@@ -210,7 +166,7 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
                                          .ThenBy(x => x.IndexPath.Row)
                                          .Where(attribute => attribute.Frame.IntersectsWith(rect)))
             {
-                Console.WriteLine($"LayoutAttributesForElementsInRect: {attribute.IndexPath} {attribute.Frame}");
+                Console.WriteLine($"LayoutAttributesForElementsInRect cache hit: {attribute.IndexPath} {attribute.Frame}");
                 attributes.Add(attribute);
                 usedHeight += attribute.Frame.Height;
             }
@@ -241,6 +197,7 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
         {
             if (layoutAttributes.RepresentedElementCategory == UICollectionElementCategory.Cell)
             {
+                Console.WriteLine($"LayoutAttributesForElementsInRect Cache miss {layoutAttributes.IndexPath}  {layoutAttributes.Frame}");
                 layoutAttributes.Frame = this.GetLayoutAttributesFrame(layoutAttributes);
             }
         }
@@ -268,24 +225,24 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
         Console.WriteLine("PrepareLayout");
         if (this.Handler.IsDragging)
         {
-            foreach (var visibleCell in this.CollectionView.VisibleCells)
-            {
-                var indexPath = this.CollectionView.IndexPathForCell(visibleCell);
-                var key = GetIndexPathKey(indexPath);
-                if (this._cachedSizes.ContainsKey(key))
-                {
-                    continue;
-                }
-                var newAttributes = this.LayoutAttributesForItem(indexPath);
-                this._cachedSizes[key] = newAttributes;
-            }
-            nfloat y = 0;
-            foreach (var attribute in this._cachedSizes.Values.OrderBy(x => x.IndexPath.Section).ThenBy(x => x.IndexPath.Row))
-            {
-                Console.WriteLine($"PrepareLayout index: {attribute.IndexPath} y: {y}, height: {attribute.Frame.Height}");
-                attribute.Frame = new CGRect(attribute.Frame.X, y, attribute.Frame.Width, attribute.Frame.Height);
-                y += attribute.Frame.Height;
-            }
+            // foreach (var visibleCell in this.CollectionView.VisibleCells)
+            // {
+            //     var indexPath = this.CollectionView.IndexPathForCell(visibleCell);
+            //     var key = GetIndexPathKey(indexPath);
+            //     if (this._cachedSizes.ContainsKey(key))
+            //     {
+            //         continue;
+            //     }
+            //     var newAttributes = this.LayoutAttributesForItem(indexPath);
+            //     this._cachedSizes[key] = newAttributes;
+            // }
+            // nfloat y = 0;
+            // foreach (var attribute in this._cachedSizes.Values.OrderBy(x => x.IndexPath.Section).ThenBy(x => x.IndexPath.Row))
+            // {
+            //     Console.WriteLine($"PrepareLayout index: {attribute.IndexPath} y: {y}, height: {attribute.Frame.Height}");
+            //     attribute.Frame = new CGRect(attribute.Frame.X, y, attribute.Frame.Width, attribute.Frame.Height);
+            //     y += attribute.Frame.Height;
+            // }
         }
         base.PrepareLayout();
     }
@@ -305,6 +262,20 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
     {
         Console.WriteLine("LayoutAttributesForSupplementaryView " + kind + " " + indexPath);
         return base.LayoutAttributesForSupplementaryView(kind, indexPath);
+    }
+
+    public override UICollectionViewLayoutAttributes FinalLayoutAttributesForDisappearingItem(NSIndexPath itemIndexPath)
+    {
+        var layoutAttributes = base.FinalLayoutAttributesForDisappearingItem(itemIndexPath);
+        Console.WriteLine("FinalLayoutAttributesForDisappearingItem " + itemIndexPath + " -> " + layoutAttributes);
+        return layoutAttributes;
+    }
+
+    public override UICollectionViewLayoutAttributes InitialLayoutAttributesForAppearingItem(NSIndexPath itemIndexPath)
+    {
+        var layoutAttributes =  base.InitialLayoutAttributesForAppearingItem(itemIndexPath);
+        Console.WriteLine("InitialLayoutAttributesForAppearingItem " + itemIndexPath + " -> " + layoutAttributes);
+        return layoutAttributes;
     }
 
     public void GetTargetIndexPathForMove(NSIndexPath originalIndexPath, NSIndexPath proposedIndexPath)
@@ -337,6 +308,8 @@ internal sealed class CvLayout : UICollectionViewFlowLayout
             
         startHeight = Math.Min(oldAttributes.Frame.Y, newAttributes.Frame.Y);
         Console.WriteLine($"Start Y: {startHeight} -> {startHeight + newAttributes.Frame.Y + oldAttributes.Frame.Y}");
+        
+        Console.WriteLine($"GetTargetIndexPathForMove oldAttributes {oldAttributes.IndexPath}  {oldAttributes.Frame} newAttributes {newAttributes.IndexPath}  {newAttributes.Frame}");
         
         oldAttributes.Frame = this.GetLayoutAttributesFrame(oldAttributes);
         newAttributes.Frame = this.GetLayoutAttributesFrame(newAttributes);
