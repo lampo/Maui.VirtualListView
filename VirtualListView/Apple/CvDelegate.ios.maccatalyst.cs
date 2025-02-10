@@ -72,8 +72,8 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
     {
 		Console.WriteLine("GetTargetIndexPathForMove");
         NSIndexPath targetIndexPath;
-        var layout = (CvLayout)collectionView.CollectionViewLayout;
-        layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
+        // var layout = (CvLayout)collectionView.CollectionViewLayout;
+        // layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
 		return proposedIndexPath;
         //var itemsView = viewController?.Item;
         //if (itemsView?.IsGrouped == true)

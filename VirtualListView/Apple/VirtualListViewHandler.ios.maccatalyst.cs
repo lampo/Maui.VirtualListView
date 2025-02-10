@@ -155,12 +155,12 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 	{
 		if (handler.layout is not null)
 		{
-			handler.layout.ScrollDirection = virtualListView.Orientation switch
-			{
-				ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
-				ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
-				_ => UICollectionViewScrollDirection.Vertical
-			};
+			// handler.layout.ScrollDirection = virtualListView.Orientation switch
+			// {
+			// 	ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
+			// 	ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
+			// 	_ => UICollectionViewScrollDirection.Vertical
+			// };
 		}
 
 		handler.InvalidateData();
