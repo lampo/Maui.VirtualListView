@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-using CoreGraphics;
+﻿using CoreGraphics;
 using Foundation;
 using UIKit;
 
@@ -81,10 +80,19 @@ internal sealed class CvLayout : UICollectionViewLayout
         Console.WriteLine("InvalidateLayout(CONTEXT) invalidate everything: " + context.InvalidateEverything);
         Console.WriteLine("InvalidateDataSourceCounts: " + context.InvalidateDataSourceCounts);
         Console.WriteLine("PreviousIndexPathsForInteractivelyMovingItems: "
-                          + context.PreviousIndexPathsForInteractivelyMovingItems?.Length);
+                          + context.PreviousIndexPathsForInteractivelyMovingItems?.FirstOrDefault());
         Console.WriteLine("TargetIndexPathsForInteractivelyMovingItems: "
-                          + context.TargetIndexPathsForInteractivelyMovingItems?.Length);
+                          + context.TargetIndexPathsForInteractivelyMovingItems?.FirstOrDefault());
         Console.WriteLine("InteractiveMovementTarget: " + context.InteractiveMovementTarget);
+        
+        if (context is { PreviousIndexPathsForInteractivelyMovingItems: not null, TargetIndexPathsForInteractivelyMovingItems: not null })
+        {
+            var fromIndexPath = context.PreviousIndexPathsForInteractivelyMovingItems.FirstOrDefault();
+            var toIndexPath = context.TargetIndexPathsForInteractivelyMovingItems.FirstOrDefault();
+            Console.WriteLine("InvalidateLayout: from: " + fromIndexPath + " to: " + toIndexPath);
+            this.SwapItemSizesWhileDragging(toIndexPath, fromIndexPath);
+        }
+        
         base.InvalidateLayout(context);
     }
 
@@ -97,6 +105,7 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
+        Console.WriteLine("PrepareLayout");
         if (CollectionView == null) return;
 
         int numberOfItems = (int)CollectionView.NumberOfItemsInSection(0);
@@ -409,18 +418,18 @@ internal sealed class CvLayout : UICollectionViewLayout
         draggingIndexPath = null;
     }
 
-    public void SwapItemSizesWhileDragging(NSIndexPath toIndexPath)
+    public void SwapItemSizesWhileDragging(NSIndexPath fromIndexPath, NSIndexPath toIndexPath)
     {
         // Console.WriteLine($"SwapItemSizesWhileDragging: {this.draggingIndexPath}, to: {toIndexPath}, cache count: {cache.Count}");
-        if (draggingIndexPath == null || toIndexPath == null || toIndexPath.Item >= cache.Count || draggingIndexPath.Equals(toIndexPath))
+        if (fromIndexPath == null || toIndexPath == null || toIndexPath.Item >= cache.Count || fromIndexPath.Equals(toIndexPath))
         {
             return;
         }
 
-        var fromAttributes = cache[draggingIndexPath.Row];
+        var fromAttributes = cache[fromIndexPath.Row];
         var toAttributes = cache[toIndexPath.Row];
 
-        Console.WriteLine($"SwapItemSizesWhileDragging: from: {this.draggingIndexPath} ({fromAttributes.Frame.Height}), to: {toIndexPath}  ({toAttributes.Frame.Height})");
+        Console.WriteLine($"SwapItemSizesWhileDragging: from: {fromIndexPath} ({fromAttributes.Frame.Height}), to: {toIndexPath}  ({toAttributes.Frame.Height})");
         
         // Swap heights normally
         nfloat tempHeight = fromAttributes.Frame.Height;
@@ -433,10 +442,10 @@ internal sealed class CvLayout : UICollectionViewLayout
             new CGRect(toAttributes.Frame.X, toAttributes.Frame.Y, toAttributes.Frame.Width, tempHeight);
 
         // Swap items in cache list
-        cache[draggingIndexPath.Row] = toAttributes;
-        cache[toIndexPath.Row] = fromAttributes;
+        // cache[fromIndexPath.Row] = toAttributes;
+        // cache[toIndexPath.Row] = fromAttributes;
         
-        Console.WriteLine($"SwapItemSizesWhileDragging: to: {toIndexPath} ({fromAttributes.Frame.Height}), to: {this.draggingIndexPath}  ({toAttributes.Frame.Height})");
+        Console.WriteLine($"SwapItemSizesWhileDragging: to: {toIndexPath} ({fromAttributes.Frame.Height}), to: {fromIndexPath}  ({toAttributes.Frame.Height})");
         
         this.draggingIndexPath = toIndexPath;
 

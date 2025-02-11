@@ -1,27 +1,30 @@
-﻿using CoreGraphics;
-using Foundation;
+﻿using Foundation;
 using UIKit;
 
 namespace Microsoft.Maui;
 
-public sealed class VirtualListViewController : UICollectionViewController, IUICollectionViewDragDelegate, IUICollectionViewDropDelegate, IUICollectionViewDelegateFlowLayout
+public sealed class VirtualListViewController : UICollectionViewController,
+    IUICollectionViewDragDelegate,
+    IUICollectionViewDropDelegate,
+    IUICollectionViewDelegateFlowLayout
 {
     private VirtualListViewHandler Handler;
     private CvLayout Layout;
 
     UILongPressGestureRecognizer _longPressGestureRecognizer;
-    
+
     public Action<nfloat, nfloat> ScrollHandler { get; set; }
 
-    public VirtualListViewController(VirtualListViewHandler handler) : base(new CvLayout(handler))
+    public VirtualListViewController(VirtualListViewHandler handler)
+        : base(new CvLayout(handler))
     {
         Handler = handler;
         Layout = (CvLayout)CollectionView.CollectionViewLayout;
 
         DataSource = new CvDataSource(handler);
-        
+
         this.Layout.DataSource = DataSource;
-        
+
         CollectionView.DataSource = DataSource;
         CollectionView.Delegate = this;
 
@@ -39,7 +42,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
     }
 
     internal CvDataSource DataSource { get; }
-    
+
     public override UICollectionView CollectionView
     {
         get
@@ -68,13 +71,23 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
         return new[] { dragItem };
     }
 
-    public UICollectionViewDropProposal DropSessionDidUpdate(UICollectionView collectionView, IUIDropSession session, NSIndexPath destinationIndexPath)
+    public UICollectionViewDropProposal DropSessionDidUpdate(UICollectionView collectionView,
+                                                             IUIDropSession session,
+                                                             NSIndexPath destinationIndexPath)
     {
         // Console.WriteLine($"DropSessionDidUpdate {destinationIndexPath}");
-        if (session.LocalDragSession == null) return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
-        
-        this.Layout.SwapItemSizesWhileDragging(destinationIndexPath);
-        return new UICollectionViewDropProposal(UIDropOperation.Move, UICollectionViewDropIntent.InsertAtDestinationIndexPath);
+        if (session.LocalDragSession == null)
+            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
+
+        var desinationInfo = Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
+        if (desinationInfo.Kind != PositionKind.Item)
+        {
+            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow dropping on items
+        }
+
+        // this.Layout.SwapItemSizesWhileDragging(destinationIndexPath);
+        return new UICollectionViewDropProposal(UIDropOperation.Move,
+            UICollectionViewDropIntent.InsertAtDestinationIndexPath);
     }
 
     public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
@@ -88,13 +101,16 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
             layout?.StopDraggingItem(); // Stop tracking when drop finishes
 
             collectionView.PerformBatchUpdates(() =>
-            {
-                collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
-            }, null);
+                {
+                    collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
+                },
+                null);
         }
     }
 
-    public override void WillDisplayCell(UICollectionView collectionView, UICollectionViewCell cell, NSIndexPath indexPath)
+    public override void WillDisplayCell(UICollectionView collectionView,
+                                         UICollectionViewCell cell,
+                                         NSIndexPath indexPath)
     {
         if (cell is CvCell dynamicCell && CollectionView.CollectionViewLayout is CvLayout layout)
         {
@@ -133,10 +149,13 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
         return true;
     }
 
-    public override void MoveItem(UICollectionView collectionView, NSIndexPath sourceIndexPath, NSIndexPath destinationIndexPath)
+    public override void MoveItem(UICollectionView collectionView,
+                                  NSIndexPath sourceIndexPath,
+                                  NSIndexPath destinationIndexPath)
     {
         Console.WriteLine($"MoveItem {sourceIndexPath} -> {destinationIndexPath}");
         DataSource.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
+
         //base.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
     }
 
@@ -168,7 +187,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
     //         }
     //     }
     // }
-    
+
     public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
         => HandleSelection(collectionView, indexPath, true);
 
@@ -185,8 +204,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
 
             if (selectedCell.PositionInfo is not null)
             {
-                var itemPos = new ItemPosition(
-                    selectedCell.PositionInfo.SectionIndex,
+                var itemPos = new ItemPosition(selectedCell.PositionInfo.SectionIndex,
                     selectedCell.PositionInfo.ItemIndex);
 
                 if (selected)
@@ -196,7 +214,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
             }
         }
     }
-    
+
     public override void Scrolled(UIScrollView scrollView)
     {
         ScrollHandler?.Invoke(scrollView.ContentOffset.X, scrollView.ContentOffset.Y);
@@ -233,6 +251,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 {
                     return;
                 }
+
                 gestureRecognizer.CancelsTouchesInView = false;
                 collectionView.BeginInteractiveMovementForItem(indexPath);
                 this.Handler.IsDragging = true;
@@ -245,12 +264,14 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
                 collectionView.EndInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
+
                 //this.Layout.InvalidateLayout();
                 break;
             default:
                 collectionView.CancelInteractiveMovement();
                 DataSource.SuspendReload = false;
                 Handler.IsDragging = false;
+
                 //this.Layout.InvalidateLayout();
                 break;
         }
@@ -263,19 +284,21 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
             Console.WriteLine("DragSessionAllowsMoveOperation");
             return true;
         }
-    
+
         public override void DragSessionWillBegin(UICollectionView collectionView, IUIDragSession session)
         {
             Console.WriteLine("DragSessionWillBegin");
+
             //base.DragSessionWillBegin(collectionView, session);
         }
-    
+
         public override void DragSessionDidEnd(UICollectionView collectionView, IUIDragSession session)
         {
             Console.WriteLine("DragSessionDidEnd");
+
             //base.DragSessionDidEnd(collectionView, session);
         }
-    
+
         // public override UIDragItem[] GetItemsForAddingToDragSession(UICollectionView collectionView, IUIDragSession session, NSIndexPath indexPath, CGPoint point)
         // {
         //     Console.WriteLine("GetItemsForAddingToDragSession");
@@ -285,14 +308,16 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
         //     dragItem.LocalObject = indexPath;
         //     return new[] { dragItem };
         // }
-    
+
         // public override UIDragPreviewParameters GetDragPreviewParameters(UICollectionView collectionView, NSIndexPath indexPath)
         // {
         //     Console.WriteLine("GetDragPreviewParameters");
         //     return base.GetDragPreviewParameters(collectionView, indexPath);
         // }
-    
-        public override UIDragItem[] GetItemsForBeginningDragSession(UICollectionView collectionView, IUIDragSession session, NSIndexPath indexPath)
+
+        public override UIDragItem[] GetItemsForBeginningDragSession(UICollectionView collectionView,
+                                                                     IUIDragSession session,
+                                                                     NSIndexPath indexPath)
         {
             Console.WriteLine("GetItemsForBeginningDragSession");
             var layout = collectionView.CollectionViewLayout as CvLayout;
@@ -302,7 +327,7 @@ public sealed class VirtualListViewController : UICollectionViewController, IUIC
             layout.StartDraggingItem(indexPath);
             return new[] { dragItem };
         }
-    
+
         // public override bool DragSessionIsRestrictedToDraggingApplication(UICollectionView collectionView, IUIDragSession session)
         // {
         //     Console.WriteLine("DragSessionIsRestrictedToDraggingApplication");
