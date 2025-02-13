@@ -1,4 +1,5 @@
-﻿using CoreGraphics;
+﻿using System.Diagnostics;
+using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Platform;
 using UIKit;
@@ -7,133 +8,157 @@ namespace Microsoft.Maui;
 
 internal class CvCell : UICollectionViewCell
 {
-	internal const string ReuseIdUnknown = "UNKNOWN";
-	
-	public VirtualListViewHandler Handler { get; set; }
+    internal const string ReuseIdUnknown = "UNKNOWN";
 
-	public WeakReference<NSIndexPath> IndexPath { get; set; }
+    // public CvCell()
+    // {
+    // 	this.AutosizesSubviews = true;
+    // 	this.AutoresizingMask = UIViewAutoresizing.FlexibleDimensions;
+    // 	this.ContentMode = UIViewContentMode.Redraw;
+    // }
 
-	public PositionInfo PositionInfo { get; private set; }
+    public VirtualListViewHandler Handler { get; set; }
 
-	public WeakReference<Action<IView>> ReuseCallback { get; set; }
-	
-	public UICollectionViewLayoutAttributes? CachedAttributes { get; private set; }
+    public WeakReference<NSIndexPath> IndexPath { get; set; }
 
-	[Export("initWithFrame:")]
-	public CvCell(CGRect frame) : base(frame)
-	{
-		this.ContentView.AddGestureRecognizer(new UITapGestureRecognizer(() => InvokeTap()));
-	}
+    public PositionInfo PositionInfo { get; private set; }
 
-	private TapHandlerCallback TapHandler;
+    public WeakReference<Action<IView>> ReuseCallback { get; set; }
 
-	public void SetTapHandlerCallback(Action<CvCell> callback)
-	{
-		TapHandler = new TapHandlerCallback(callback);
-	}
+    public UICollectionViewLayoutAttributes? CachedAttributes { get; private set; }
 
-	WeakReference<UIKeyCommand[]> keyCommands;
+    [Export("initWithFrame:")]
+    public CvCell(CGRect frame)
+        : base(frame)
+    {
+        this.ContentView.AddGestureRecognizer(new UITapGestureRecognizer(() => InvokeTap()));
+    }
 
-	public override UIKeyCommand[] KeyCommands
-	{
-		get
-		{
-			if (keyCommands?.TryGetTarget(out var commands) ?? false)
+    private TapHandlerCallback TapHandler;
+
+    public void SetTapHandlerCallback(Action<CvCell> callback)
+    {
+        TapHandler = new TapHandlerCallback(callback);
+    }
+
+    WeakReference<UIKeyCommand[]> keyCommands;
+
+    public override UIKeyCommand[] KeyCommands
+    {
+        get
+        {
+            if (keyCommands?.TryGetTarget(out var commands) ?? false)
                 return commands;
 
-			var v = new[]
-			{
-				UIKeyCommand.Create(new NSString("\r"), 0, new ObjCRuntime.Selector("keyCommandSelect")),
-				UIKeyCommand.Create(new NSString(" "), 0, new ObjCRuntime.Selector("keyCommandSelect")),
-			};
+            var v = new[]
+            {
+                UIKeyCommand.Create(new NSString("\r"), 0, new ObjCRuntime.Selector("keyCommandSelect")),
+                UIKeyCommand.Create(new NSString(" "), 0, new ObjCRuntime.Selector("keyCommandSelect")),
+            };
 
             keyCommands = new WeakReference<UIKeyCommand[]>(v);
 
-			return v;
-		}
-	}
+            return v;
+        }
+    }
 
     [Export("keyCommandSelect")]
-	public void KeyCommandSelect()
-	{
-		InvokeTap();
-	}
+    public void KeyCommandSelect()
+    {
+        InvokeTap();
+    }
 
-	void InvokeTap()
-	{
-		if (PositionInfo.Kind == PositionKind.Item)
-		{
-			TapHandler.Invoke(this);
-		}
-	}
+    void InvokeTap()
+    {
+        if (PositionInfo.Kind == PositionKind.Item)
+        {
+            TapHandler.Invoke(this);
+        }
+    }
 
-	public void UpdateSelected(bool selected)
-	{
-		PositionInfo.IsSelected = selected;
+    public void UpdateSelected(bool selected)
+    {
+        PositionInfo.IsSelected = selected;
 
-		if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
-		{
-			if (virtualView is IPositionInfo positionInfo)
-			{
-				positionInfo.IsSelected = selected;
-				virtualView.Handler?.UpdateValue(nameof(PositionInfo.IsSelected));
-			}
-		}
-	}
+        if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
+        {
+            if (virtualView is IPositionInfo positionInfo)
+            {
+                positionInfo.IsSelected = selected;
+                virtualView.Handler?.UpdateValue(nameof(PositionInfo.IsSelected));
+            }
+        }
+    }
 
-	CGRect? cachedFrame;
-	public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(UICollectionViewLayoutAttributes layoutAttributes)
-	{
-		// var item = base.PreferredLayoutAttributesFittingAttributes(layoutAttributes);
-		// Console.WriteLine($"Preferend Cell Layout Attributes: {layoutAttributes.IndexPath} " + layoutAttributes.Frame);
-		// Console.WriteLine("Cached Frame: " + cachedFrame);
-        if ((NativeView is not null && NativeView.TryGetTarget(out var _))
-            && (VirtualView is not null && VirtualView.TryGetTarget(out var virtualView)))
-		{
-			var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
-			this.cachedFrame = layoutAttributes.Frame = new CGRect(0, layoutAttributes.Frame.Y, layoutAttributes.Frame.Width, measure.Height);
-			// Console.WriteLine("New Frame: " + layoutAttributes.Frame);
-			this.CachedAttributes = layoutAttributes;
+    public override UICollectionViewLayoutAttributes PreferredLayoutAttributesFittingAttributes(
+        UICollectionViewLayoutAttributes layoutAttributes)
+    {
+        if ((this.NativeView is null || !this.NativeView.TryGetTarget(out _))
+            || (this.VirtualView is null || !this.VirtualView.TryGetTarget(out var virtualView)))
+        {
             return layoutAttributes;
-		}
+        }
 
-		return layoutAttributes;
-	}
+        var collectionView = this.Superview as UICollectionView;
+        var layout = collectionView?.CollectionViewLayout as CvLayout;
+        var originalSize = layoutAttributes.Size;
+        if (layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal)
+        {
+            layoutAttributes.Frame = GetHorizontalLayoutFrame(virtualView, layoutAttributes);
+        }
+        else
+        {
+            layoutAttributes.Frame = GetVirtualLayoutFrame(virtualView, layoutAttributes);
+        }
 
-	public bool NeedsView
-		=> NativeView == null 
-			|| VirtualView is null
-			|| !NativeView.TryGetTarget(out var _) 
-			|| !VirtualView.TryGetTarget(out var _);
+        this.CachedAttributes = layoutAttributes;
+        if (originalSize != layoutAttributes.Frame.Size)
+        {
+            layout.UpdateItemSize(layoutAttributes.IndexPath, layoutAttributes.Frame.Size);
+        }
 
-	public WeakReference<IView> VirtualView { get; set; }
+        return layoutAttributes;
+    }
 
-	public WeakReference<UIView> NativeView { get; set; }
+    public bool NeedsView
+        => NativeView == null
+           || VirtualView is null
+           || !NativeView.TryGetTarget(out var _)
+           || !VirtualView.TryGetTarget(out var _);
 
-	public override void PrepareForReuse()
-	{
-		base.PrepareForReuse();
+    public WeakReference<IView> VirtualView { get; set; }
 
-		// TODO: Recycle
-		if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
-			&& (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
-		{
-			reuseCallback?.Invoke(virtualView);
-		}
-	}
+    public WeakReference<UIView> NativeView { get; set; }
 
-	public void SetupView(IView view)
-	{
+    public override void PrepareForReuse()
+    {
+        base.PrepareForReuse();
+
+        // TODO: Recycle
+        if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
+            && (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
+        {
+            reuseCallback?.Invoke(virtualView);
+        }
+    }
+
+    public void SetupView(IView view)
+    {
         // Create a new platform native view if we don't have one yet
         if (!(NativeView?.TryGetTarget(out var _) ?? false))
         {
-			var nativeView = view.ToPlatform(this.Handler.MauiContext);
-            nativeView.Frame = this.ContentView.Frame;
+            var container = new ViewContainer(this);
+            var nativeView = view.ToPlatform(this.Handler.MauiContext);
+
+            container.Frame = this.ContentView.Frame;
+            container.AutoresizingMask = UIViewAutoresizing.FlexibleHeight | UIViewAutoresizing.FlexibleWidth;
             nativeView.AutoresizingMask = UIViewAutoresizing.FlexibleHeight | UIViewAutoresizing.FlexibleWidth;
-            
-			this.ContentView.AddSubview(nativeView);
-            
-			NativeView = new WeakReference<UIView>(nativeView);
+            nativeView.ContentMode = UIViewContentMode.Redraw;
+
+            container.AddSubview(nativeView);
+            this.AddSubview(container);
+
+            NativeView = new WeakReference<UIView>(nativeView);
         }
 
         if (!(VirtualView?.TryGetTarget(out var virtualView) ?? false) || (virtualView?.Handler is null))
@@ -142,26 +167,107 @@ internal class CvCell : UICollectionViewCell
         }
     }
 
-	public void UpdatePosition(PositionInfo positionInfo)
-	{
+    public override void SetNeedsLayout()
+    {
+        var cachedAttributes = this.CachedAttributes;
+        if (cachedAttributes is null)
+        {
+            base.SetNeedsLayout();
+            return;
+        }
+
+        var oldWidth = cachedAttributes.Frame.Width;
+        var oldHeight = cachedAttributes.Frame.Height;
+
+        var newAttributes = this.PreferredLayoutAttributesFittingAttributes(cachedAttributes);
+
+        if (newAttributes.Frame.Width != oldWidth || newAttributes.Frame.Height != oldHeight)
+        {
+            var collectionView = this.Superview as UICollectionView;
+            var layout = collectionView?.CollectionViewLayout as CvLayout;
+            layout?.UpdateItemSize(newAttributes.IndexPath, newAttributes.Frame.Size);
+            layout?.InvalidateLayout();
+        }
+    }
+
+    public void UpdatePosition(PositionInfo positionInfo)
+    {
         PositionInfo = positionInfo;
         if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
-		{
+        {
             if (virtualView is IPositionInfo viewPositionInfo)
                 viewPositionInfo.Update(positionInfo);
         }
     }
-	
-	class TapHandlerCallback
-	{
-		public TapHandlerCallback(Action<CvCell> callback)
-		{
-			Callback = callback;
-		}
-		
-		public readonly Action<CvCell> Callback;
+    
+    private static CGRect GetHorizontalLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    {
+        double width = 0;
+        if (virtualView.Height is < 0 or double.NaN)
+        {
+            var measure = virtualView.Measure(double.PositiveInfinity, layoutAttributes.Size.Height);
+            width = measure.Width;
+        }
+        else
+        {
+            width = virtualView.Width;
+        }
+        
+        return new CGRect(layoutAttributes.Frame.X,
+            0,
+            width,
+            layoutAttributes.Frame.Width);
+    }
+    
+    private static CGRect GetVirtualLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    {
+        double height = 0;
+        if (virtualView.Height is < 0 or double.NaN)
+        {
+            var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
+            height = measure.Height;
+        }
+        else
+        {
+            height = virtualView.Height;
+        }
+        
+        return new CGRect(0,
+            layoutAttributes.Frame.Y,
+            layoutAttributes.Frame.Width,
+            height);
+    }
 
-		public void Invoke(CvCell cell)
-			=> Callback?.Invoke(cell);
-	}
+    class TapHandlerCallback
+    {
+        public TapHandlerCallback(Action<CvCell> callback)
+        {
+            Callback = callback;
+        }
+
+        public readonly Action<CvCell> Callback;
+
+        public void Invoke(CvCell cell)
+            => Callback?.Invoke(cell);
+    }
+
+    private class ViewContainer(CvCell parentCell) : UIView
+    {
+        public override void LayoutSubviews()
+        {
+            base.LayoutSubviews();
+
+            // Adjust constraints of subviews if needed
+            foreach (var subview in Subviews)
+            {
+                subview.Frame = Bounds;
+            }
+        }
+
+        public override void SetNeedsLayout()
+        {
+            base.SetNeedsLayout();
+            parentCell.SetNeedsLayout();
+        }
+    }
 }

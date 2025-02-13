@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System.Windows.Input;
 using Microsoft.Maui.Adapters;
+using Microsoft.Maui.HotReload;
 
 namespace Microsoft.Maui.Controls;
 

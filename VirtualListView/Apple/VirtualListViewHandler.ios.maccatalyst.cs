@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using Foundation;
 using Microsoft.Maui.Handlers;
+using Microsoft.Maui.HotReload;
 using Microsoft.Maui.Platform;
 using UIKit;
 
@@ -17,10 +18,10 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 		Controller = new VirtualListViewController(this);
 
 		var collectionView = this.Controller.CollectionView;
-		//collectionView.ContentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentBehavior.Never;
 		collectionView.AllowsMultipleSelection = false;
 		collectionView.AllowsSelection = false;
-
+		this.layout = (CvLayout)collectionView.CollectionViewLayout;
+		
 
 		refreshControl = new UIRefreshControl();
 		refreshControl.Enabled = VirtualView?.IsRefreshEnabled ?? false;
@@ -38,14 +39,11 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 		}), UIControlEvent.ValueChanged);
 
 		//collectionView.AddSubview(refreshControl);
-
-		collectionView.AlwaysBounceVertical = true;
-
 		//collectionView.ContentInset = new UIEdgeInsets(0, 0, 0, 0);
 		//collectionView.ScrollIndicatorInsets = new UIEdgeInsets(0, 0, 0, 0);
 		//collectionView.AutomaticallyAdjustsScrollIndicatorInsets = false;
-
-		return Controller.CollectionView;
+		
+		return collectionView;
 	}
 
     public VirtualListViewController Controller { get; private set; }
@@ -155,12 +153,18 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 	{
 		if (handler.layout is not null)
 		{
-			// handler.layout.ScrollDirection = virtualListView.Orientation switch
-			// {
-			// 	ListOrientation.Vertical => UICollectionViewScrollDirection.Vertical,
-			// 	ListOrientation.Horizontal => UICollectionViewScrollDirection.Horizontal,
-			// 	_ => UICollectionViewScrollDirection.Vertical
-			// };
+			if (virtualListView.Orientation == ListOrientation.Vertical)
+			{
+				handler.layout.ScrollDirection = UICollectionViewScrollDirection.Vertical;
+				handler.Controller.CollectionView.AlwaysBounceVertical = true;
+				handler.Controller.CollectionView.AlwaysBounceHorizontal = false;
+			}
+			else
+			{
+				handler.layout.ScrollDirection = UICollectionViewScrollDirection.Horizontal;
+				handler.Controller.CollectionView.AlwaysBounceVertical = false;
+				handler.Controller.CollectionView.AlwaysBounceHorizontal = true;
+			}
 		}
 
 		handler.InvalidateData();
@@ -286,6 +290,4 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 
 		return positions;
 	}
-
-    public bool IsDragging { get; set; }
 }

@@ -1,190 +1,55 @@
-﻿using Foundation;
+﻿using CoreGraphics;
+using Foundation;
+using Microsoft.Maui.Adapters;
 using UIKit;
 
 namespace Microsoft.Maui;
 
 public sealed class VirtualListViewController : UICollectionViewController,
     IUICollectionViewDragDelegate,
-    IUICollectionViewDropDelegate,
-    IUICollectionViewDelegateFlowLayout
+    IUICollectionViewDropDelegate
 {
     private VirtualListViewHandler Handler;
-    private CvLayout Layout;
 
     UILongPressGestureRecognizer _longPressGestureRecognizer;
 
     public Action<nfloat, nfloat> ScrollHandler { get; set; }
 
     public VirtualListViewController(VirtualListViewHandler handler)
-        : base(new CvLayout(handler))
+        : base(new CvLayout())
     {
         Handler = handler;
-        Layout = (CvLayout)CollectionView.CollectionViewLayout;
 
         DataSource = new CvDataSource(handler);
-
-        this.Layout.DataSource = DataSource;
 
         CollectionView.DataSource = DataSource;
         CollectionView.Delegate = this;
 
-        CollectionView.DragDelegate = new DragDelagate();
+        CollectionView.DragDelegate = this;
         CollectionView.DropDelegate = this;
         CollectionView.DragInteractionEnabled = true;
 
         // The UICollectionViewController has built-in recognizer for reorder that can be installed by setting "InstallsStandardGestureForInteractiveMovement".
         // For some reason it only seemed to work when the CollectionView was inside the Flyout section of a FlyoutPage.
         // The UILongPressGestureRecognizer is simple enough to set up so let's just add our own.
-        InstallsStandardGestureForInteractiveMovement = false;
-
-        _longPressGestureRecognizer = new UILongPressGestureRecognizer(HandleLongPress);
-        CollectionView.AddGestureRecognizer(_longPressGestureRecognizer);
+        // InstallsStandardGestureForInteractiveMovement = false;
+        //
+        // _longPressGestureRecognizer = new UILongPressGestureRecognizer(HandleLongPress);
+        // CollectionView.AddGestureRecognizer(_longPressGestureRecognizer);
     }
+
 
     internal CvDataSource DataSource { get; }
-
-    public override UICollectionView CollectionView
-    {
-        get
-        {
-            Console.WriteLine("CollectionView get");
-            return base.CollectionView;
-        }
-        set
-        {
-            Console.WriteLine("CollectionView set");
-            base.CollectionView = value;
-        }
-    }
-
-    public UIDragItem[] GetItemsForBeginningDragSession(UICollectionView collectionView,
-                                                        IUIDragSession session,
-                                                        NSIndexPath indexPath)
-    {
-        Console.WriteLine($"GetItemsForBeginningDragSession {indexPath}");
-        var layout = collectionView.CollectionViewLayout as CvLayout;
-        layout?.StartDraggingItem(indexPath);
-
-        var item = new NSString($"{indexPath.Item}");
-        var dragItem = new UIDragItem(new NSItemProvider(item));
-        dragItem.LocalObject = indexPath;
-        return new[] { dragItem };
-    }
-
-    public UICollectionViewDropProposal DropSessionDidUpdate(UICollectionView collectionView,
-                                                             IUIDropSession session,
-                                                             NSIndexPath destinationIndexPath)
-    {
-        // Console.WriteLine($"DropSessionDidUpdate {destinationIndexPath}");
-        if (session.LocalDragSession == null)
-            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
-
-        var desinationInfo = Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
-        if (desinationInfo.Kind != PositionKind.Item)
-        {
-            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow dropping on items
-        }
-
-        // this.Layout.SwapItemSizesWhileDragging(destinationIndexPath);
-        return new UICollectionViewDropProposal(UIDropOperation.Move,
-            UICollectionViewDropIntent.InsertAtDestinationIndexPath);
-    }
-
-    public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
-    {
-        Console.WriteLine("PerformDrop");
-        NSIndexPath destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
-
-        if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is NSIndexPath sourceIndexPath)
-        {
-            var layout = collectionView.CollectionViewLayout as CvLayout;
-            layout?.StopDraggingItem(); // Stop tracking when drop finishes
-
-            collectionView.PerformBatchUpdates(() =>
-                {
-                    collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
-                },
-                null);
-        }
-    }
-
-    public override void WillDisplayCell(UICollectionView collectionView,
-                                         UICollectionViewCell cell,
-                                         NSIndexPath indexPath)
-    {
-        if (cell is CvCell dynamicCell && CollectionView.CollectionViewLayout is CvLayout layout)
-        {
-            var attributes = dynamicCell.CachedAttributes;
-            layout.UpdateItemSize(indexPath, attributes.Frame.Height);
-        }
-    }
-
-    // Drag & Drop Delegates
-    // public UIDragItem[] GetItemsForBeginningSession(UICollectionView collectionView, IUIDragSession session, NSIndexPath indexPath)
-    // {
-    //     var item = new NSString($"{indexPath.Item}");
-    //     var dragItem = new UIDragItem(new NSItemProvider(item));
-    //     dragItem.LocalObject = indexPath;
-    //     return new[] { dragItem };
-    // }
-
-    // public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
-    // {
-    //     NSIndexPath destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
-    //
-    //     if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is NSIndexPath sourceIndexPath)
+    
+    // public override void WillDisplayCell(UICollectionView collectionView,
+    //                                      UICollectionViewCell cell,
+    //                                      NSIndexPath indexPath)
+    //  {
+    //     if (cell is CvCell dynamicCell && CollectionView.CollectionViewLayout is CvLayout layout)
     //     {
-    //         collectionView.PerformBatchUpdates(() =>
-    //         {
-    //             collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
-    //         }, null);
-    //     }
-    // }
-
-    public override bool CanMoveItem(UICollectionView collectionView, NSIndexPath indexPath)
-    {
-        Console.WriteLine($"CanMoveItem {indexPath}");
-        DataSource.SuspendReload = true;
-        Handler.IsDragging = true;
-        return true;
-    }
-
-    public override void MoveItem(UICollectionView collectionView,
-                                  NSIndexPath sourceIndexPath,
-                                  NSIndexPath destinationIndexPath)
-    {
-        Console.WriteLine($"MoveItem {sourceIndexPath} -> {destinationIndexPath}");
-        DataSource.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
-
-        //base.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
-    }
-
-    // public override NSIndexPath GetTargetIndexPathForMove(UICollectionView collectionView,
-    //                                                       NSIndexPath originalIndexPath,
-    //                                                       NSIndexPath proposedIndexPath)
-    // {
-    //     this.Layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
-    //     
-    //     return proposedIndexPath;
-    // }
-    //
-    // // Allow dropping and reordering
-    // public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
-    // {
-    //     Console.WriteLine("PerformDrop");
-    //     var destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
-    //
-    //     foreach (var item in coordinator.Items)
-    //     {
-    //         if (item.SourceIndexPath != null)
-    //         {
-    //             var sourceIndexPath = item.SourceIndexPath;
-    //             DataSource.MoveItem(collectionView, sourceIndexPath, destinationIndexPath);
-    //             CollectionView.PerformBatchUpdates(() =>
-    //             {
-    //                 CollectionView.MoveItem(sourceIndexPath, destinationIndexPath);
-    //             }, null);
-    //         }
+    //         var attributes = dynamicCell.CachedAttributes;
+    //          // Console.WriteLine($"WillDisplayCell: inedexPath: {indexPath}, cachedIndex: {attributes?.IndexPath}");
+    //          // layout.UpdateItemSize(indexPath, attributes.Frame.Size);
     //     }
     // }
 
@@ -232,6 +97,92 @@ public sealed class VirtualListViewController : UICollectionViewController,
         return (info?.Kind ?? PositionKind.Header) == PositionKind.Item;
     }
 
+#region Drag & Drop
+
+    UIDragPreviewParameters? IUICollectionViewDragDelegate.GetDragPreviewParameters(
+        UICollectionView collectionView,
+        NSIndexPath indexPath)
+    {
+        var parameters = new UIDragPreviewParameters();
+        var cell = collectionView.CellForItem(indexPath);
+        if (cell is CvCell cvCell)
+        {
+            parameters.VisiblePath = UIBezierPath.FromRoundedRect(cvCell.Bounds, 8);
+        }
+        
+        return parameters;
+    }
+
+    UIDragItem[] IUICollectionViewDragDelegate.GetItemsForBeginningDragSession(UICollectionView collectionView,
+                                                                              IUIDragSession session,
+                                                                              NSIndexPath indexPath)
+    {
+        var info = this.Handler.PositionalViewSelector.GetInfo(indexPath.Item.ToInt32());
+        if (info.Kind != PositionKind.Item || !((IReorderableVirtualListViewAdapter)this.Handler.VirtualView.Adapter).CanReorderItem(info))
+        {
+            return [];
+        }
+            
+        var item = new NSString($"{indexPath.Item}");
+        var dragItem = new UIDragItem(new NSItemProvider(item));
+        dragItem.LocalObject = indexPath;
+        session.LocalContext = indexPath;
+        // layout.StartDraggingItem(indexPath);
+            
+            
+        return [dragItem];
+    }
+
+    void IUICollectionViewDragDelegate.DragSessionWillBegin(UICollectionView collectionView, IUIDragSession session)
+    {
+        if (session.Items.Length == 0)
+        {
+            return;
+        }
+        
+        
+    }
+    
+    public UICollectionViewDropProposal DropSessionDidUpdate(UICollectionView collectionView,
+                                                             IUIDropSession session,
+                                                             NSIndexPath destinationIndexPath)
+    {
+        // Console.WriteLine($"DropSessionDidUpdate {destinationIndexPath}");
+        if (session.LocalDragSession is not {LocalContext: NSIndexPath fromLocation} || destinationIndexPath is null)
+            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
+ 
+        var desinationInfo = Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
+        var fromInfo = Handler.PositionalViewSelector.GetInfo(fromLocation.Item.ToInt32());
+        if (desinationInfo.Kind != PositionKind.Item || !((IReorderableVirtualListViewAdapter
+                )this.Handler.VirtualView.Adapter).OnMoveItem(fromInfo, desinationInfo))
+        {
+            return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow dropping on items
+        }
+
+        session.LocalDragSession.LocalContext = destinationIndexPath;
+        // this.Layout.SwapItemSizesWhileDragging(destinationIndexPath);
+        return new UICollectionViewDropProposal(UIDropOperation.Move,
+            UICollectionViewDropIntent.InsertAtDestinationIndexPath);
+    }
+
+    public void PerformDrop(UICollectionView collectionView, IUICollectionViewDropCoordinator coordinator)
+    {
+        Console.WriteLine("PerformDrop");
+        NSIndexPath destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
+
+        if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is NSIndexPath sourceIndexPath)
+        {
+            var layout = collectionView.CollectionViewLayout as CvLayout;
+            // layout?.StopDraggingItem(); // Stop tracking when drop finishes
+
+            collectionView.PerformBatchUpdates(() =>
+                {
+                    collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
+                },
+                null);
+        }
+    }
+    
     void HandleLongPress(UILongPressGestureRecognizer gestureRecognizer)
     {
         Console.WriteLine("HandleLongPress: " + gestureRecognizer.State);
@@ -247,91 +198,31 @@ public sealed class VirtualListViewController : UICollectionViewController,
         {
             case UIGestureRecognizerState.Began:
                 var indexPath = collectionView?.IndexPathForItemAtPoint(location);
-                if (indexPath == null)
+                var adaptor = this.Handler.PositionalViewSelector.Adapter as IReorderableVirtualListViewAdapter;
+                var info = this.Handler.PositionalViewSelector.GetInfo(indexPath.Item.ToInt32());
+                if (indexPath == null || info.Kind != PositionKind.Item || !(adaptor?.CanReorderItem(info) ?? false))
                 {
                     return;
                 }
 
                 gestureRecognizer.CancelsTouchesInView = false;
                 collectionView.BeginInteractiveMovementForItem(indexPath);
-                this.Handler.IsDragging = true;
                 break;
             case UIGestureRecognizerState.Changed:
                 gestureRecognizer.CancelsTouchesInView = true;
+                location = this.Handler.VirtualView.Orientation == ListOrientation.Vertical ? new CGPoint(0, location.Y) : new CGPoint(location.X, 0);
                 collectionView.UpdateInteractiveMovement(location);
                 break;
             case UIGestureRecognizerState.Ended:
                 collectionView.EndInteractiveMovement();
                 DataSource.SuspendReload = false;
-                Handler.IsDragging = false;
-
-                //this.Layout.InvalidateLayout();
                 break;
             default:
                 collectionView.CancelInteractiveMovement();
                 DataSource.SuspendReload = false;
-                Handler.IsDragging = false;
-
-                //this.Layout.InvalidateLayout();
                 break;
         }
     }
 
-    internal class DragDelagate : UICollectionViewDragDelegate
-    {
-        public override bool DragSessionAllowsMoveOperation(UICollectionView collectionView, IUIDragSession session)
-        {
-            Console.WriteLine("DragSessionAllowsMoveOperation");
-            return true;
-        }
-
-        public override void DragSessionWillBegin(UICollectionView collectionView, IUIDragSession session)
-        {
-            Console.WriteLine("DragSessionWillBegin");
-
-            //base.DragSessionWillBegin(collectionView, session);
-        }
-
-        public override void DragSessionDidEnd(UICollectionView collectionView, IUIDragSession session)
-        {
-            Console.WriteLine("DragSessionDidEnd");
-
-            //base.DragSessionDidEnd(collectionView, session);
-        }
-
-        // public override UIDragItem[] GetItemsForAddingToDragSession(UICollectionView collectionView, IUIDragSession session, NSIndexPath indexPath, CGPoint point)
-        // {
-        //     Console.WriteLine("GetItemsForAddingToDragSession");
-        //
-        //     var item = new NSString($"{indexPath.Item}");
-        //     var dragItem = new UIDragItem(new NSItemProvider(item));
-        //     dragItem.LocalObject = indexPath;
-        //     return new[] { dragItem };
-        // }
-
-        // public override UIDragPreviewParameters GetDragPreviewParameters(UICollectionView collectionView, NSIndexPath indexPath)
-        // {
-        //     Console.WriteLine("GetDragPreviewParameters");
-        //     return base.GetDragPreviewParameters(collectionView, indexPath);
-        // }
-
-        public override UIDragItem[] GetItemsForBeginningDragSession(UICollectionView collectionView,
-                                                                     IUIDragSession session,
-                                                                     NSIndexPath indexPath)
-        {
-            Console.WriteLine("GetItemsForBeginningDragSession");
-            var layout = collectionView.CollectionViewLayout as CvLayout;
-            var item = new NSString($"{indexPath.Item}");
-            var dragItem = new UIDragItem(new NSItemProvider(item));
-            dragItem.LocalObject = indexPath;
-            layout.StartDraggingItem(indexPath);
-            return new[] { dragItem };
-        }
-
-        // public override bool DragSessionIsRestrictedToDraggingApplication(UICollectionView collectionView, IUIDragSession session)
-        // {
-        //     Console.WriteLine("DragSessionIsRestrictedToDraggingApplication");
-        //     return base.DragSessionIsRestrictedToDraggingApplication(collectionView, session);
-        // }
-    }
+#endregion
 }

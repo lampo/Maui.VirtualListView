@@ -115,7 +115,10 @@ internal class CvDataSource : UICollectionViewDataSource
 
     public override bool CanMoveItem(UICollectionView collectionView, NSIndexPath indexPath)
     {
-        return true;
+	    var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
+
+	    var adapter = Handler?.PositionalViewSelector?.Adapter as IReorderableVirtualListViewAdapter;
+        return info.Kind == PositionKind.Item && adapter.CanReorderItem(info);
     }
 
     public override void MoveItem(UICollectionView collectionView, NSIndexPath sourceIndexPath, NSIndexPath destinationIndexPath)
