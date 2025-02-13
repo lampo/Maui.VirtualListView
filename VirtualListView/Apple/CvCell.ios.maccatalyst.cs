@@ -25,7 +25,7 @@ internal class CvCell : UICollectionViewCell
 
     public WeakReference<Action<IView>> ReuseCallback { get; set; }
 
-    public UICollectionViewLayoutAttributes? CachedAttributes { get; private set; }
+    private WeakReference<UICollectionViewLayoutAttributes> cachedAttributes;
 
     [Export("initWithFrame:")]
     public CvCell(CGRect frame)
@@ -102,16 +102,13 @@ internal class CvCell : UICollectionViewCell
         var collectionView = this.Superview as UICollectionView;
         var layout = collectionView?.CollectionViewLayout as CvLayout;
         var originalSize = layoutAttributes.Size;
-        if (layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal)
-        {
-            layoutAttributes.Frame = GetHorizontalLayoutFrame(virtualView, layoutAttributes);
-        }
-        else
-        {
-            layoutAttributes.Frame = GetVirtualLayoutFrame(virtualView, layoutAttributes);
-        }
+        layoutAttributes.Frame = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
+            ? GetHorizontalLayoutFrame(virtualView, layoutAttributes)
+            : GetVirtualLayoutFrame(virtualView, layoutAttributes);
 
-        this.CachedAttributes = layoutAttributes;
+        
+        this.cachedAttributes = new WeakReference<UICollectionViewLayoutAttributes>(layoutAttributes);
+        
         if (originalSize != layoutAttributes.Frame.Size)
         {
             layout.UpdateItemSize(layoutAttributes.IndexPath, layoutAttributes.Frame.Size);
@@ -169,23 +166,23 @@ internal class CvCell : UICollectionViewCell
 
     public override void SetNeedsLayout()
     {
-        var cachedAttributes = this.CachedAttributes;
-        if (cachedAttributes is null)
+        if (!(this.cachedAttributes?.TryGetTarget(out var layoutAttribtues) ?? false))
         {
             base.SetNeedsLayout();
             return;
         }
 
-        var oldWidth = cachedAttributes.Frame.Width;
-        var oldHeight = cachedAttributes.Frame.Height;
-
-        var newAttributes = this.PreferredLayoutAttributesFittingAttributes(cachedAttributes);
-
+        var oldWidth = layoutAttribtues.Frame.Width;
+        var oldHeight = layoutAttribtues.Frame.Height;
+        
+        // check new size
+        var newAttributes = this.PreferredLayoutAttributesFittingAttributes(layoutAttribtues);
+        
+        // if the content size has changed, we need to invalidate the layout
         if (newAttributes.Frame.Width != oldWidth || newAttributes.Frame.Height != oldHeight)
         {
             var collectionView = this.Superview as UICollectionView;
             var layout = collectionView?.CollectionViewLayout as CvLayout;
-            layout?.UpdateItemSize(newAttributes.IndexPath, newAttributes.Frame.Size);
             layout?.InvalidateLayout();
         }
     }
@@ -199,10 +196,11 @@ internal class CvCell : UICollectionViewCell
                 viewPositionInfo.Update(positionInfo);
         }
     }
-    
+
     private static CGRect GetHorizontalLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
     {
-        double width = 0;
+        double width;
+        // slight optimization to avoid measuring the view if it's already been measured
         if (virtualView.Height is < 0 or double.NaN)
         {
             var measure = virtualView.Measure(double.PositiveInfinity, layoutAttributes.Size.Height);
@@ -212,16 +210,17 @@ internal class CvCell : UICollectionViewCell
         {
             width = virtualView.Width;
         }
-        
+
         return new CGRect(layoutAttributes.Frame.X,
-            0,
+            layoutAttributes.Frame.Y,
             width,
             layoutAttributes.Frame.Width);
     }
-    
+
     private static CGRect GetVirtualLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
     {
-        double height = 0;
+        double height;
+        // slight optimization to avoid measuring the view if it's already been measured
         if (virtualView.Height is < 0 or double.NaN)
         {
             var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
@@ -231,8 +230,8 @@ internal class CvCell : UICollectionViewCell
         {
             height = virtualView.Height;
         }
-        
-        return new CGRect(0,
+
+        return new CGRect(layoutAttributes.Frame.X,
             layoutAttributes.Frame.Y,
             layoutAttributes.Frame.Width,
             height);

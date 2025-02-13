@@ -118,9 +118,8 @@ internal sealed class CvLayout : UICollectionViewLayout
             ? new CGRect(0, cache[indexPath.Row].Frame.Y, ContentWidth, newFrame.Height)
             : new CGRect(cache[indexPath.Row].Frame.X, 0, newFrame.Width, ContentHeight);
 
+        // since the content size has changed, we need to update the position of the remaning content
         this.RebuildCachedFramePositions();
-        
-        InvalidateLayout();
     }
 
     public void SwapItemSizesWhileDragging(NSIndexPath fromIndexPath, NSIndexPath toIndexPath)
@@ -169,6 +168,8 @@ internal sealed class CvLayout : UICollectionViewLayout
                 cache[i].Frame = new CGRect(cache[i].Frame.X, calculatedY, ContentWidth, cache[i].Frame.Height);
                 calculatedY += cache[i].Frame.Height;
             }
+            
+            this.dynamicContentHeight = calculatedY;
         }
 
         void HorizontalList()
@@ -179,6 +180,8 @@ internal sealed class CvLayout : UICollectionViewLayout
                 cache[i].Frame = new CGRect(calculatedX, cache[i].Frame.Y, cache[i].Frame.Width, ContentHeight);
                 calculatedX += cache[i].Frame.Width;
             }
+            
+            this.dynamicContentWidth = calculatedX;
         }
     }
 }
