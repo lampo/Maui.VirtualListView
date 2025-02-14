@@ -6,6 +6,9 @@ namespace Microsoft.Maui;
 
 internal sealed class CvLayout : UICollectionViewLayout
 {
+    private int contentHashCode = 0;
+    private List<int> itemPositionCache = [];
+    
     private UICollectionViewScrollDirection scrollDirection = UICollectionViewScrollDirection.Vertical;
 
     public UICollectionViewScrollDirection ScrollDirection
@@ -40,6 +43,8 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     private nfloat ContentWidth => CollectionView?.Bounds.Width ?? 0;
     private nfloat ContentHeight => CollectionView?.Bounds.Height ?? 0;
+    
+    private CvDataSource DataSource => (CvDataSource)CollectionView.DataSource;
 
     public override CGSize CollectionViewContentSize => this.ScrollDirection == UICollectionViewScrollDirection.Vertical
         ? new CGSize(this.ContentWidth, this.dynamicContentHeight)
@@ -47,11 +52,12 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
-        if (CollectionView == null)
+        if (CollectionView == null || DataSource.ContentHashCode == this.contentHashCode)
         {
             return;
         }
 
+        
         int numberOfItems = (int)CollectionView.DataSource.GetItemsCount(CollectionView, 0);
 
         if (numberOfItems == this.cache.Count)

@@ -2,7 +2,7 @@ using Microsoft.Maui.Adapters;
 
 namespace Microsoft.Maui;
 
-public interface IVirtualListView : IReorderableVirtualListView, IView
+public interface IVirtualListView : IView
 {
 	IVirtualListViewAdapter Adapter { get; }
 
@@ -53,13 +53,15 @@ public interface IVirtualListView : IReorderableVirtualListView, IView
 	IReadOnlyList<IPositionInfo> FindVisiblePositions();	
 }
 
-public interface IReorderableVirtualListView
+public interface IReorderbleVirtualListView : IVirtualListView
 {
-    bool OnItemMoved(int fromSection, int fromIndex, int toSection, int toIndex);
+    bool CanReorderItems { get; set; }
+    
+    new IReorderableVirtualListViewAdapter Adapter { get; set; }
 }
 
 public enum ListOrientation
 {
 	Vertical,
-	Horizontal
+	Horizontal,
 }

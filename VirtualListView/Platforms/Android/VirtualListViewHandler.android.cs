@@ -1,13 +1,4 @@
-﻿using Android.Views;
-using Android.Widget;
-using AndroidX.RecyclerView.Widget;
-using AndroidX.SwipeRefreshLayout.Widget;
-using Microsoft.Maui.Controls.PlatformConfiguration;
-using Microsoft.Maui.Controls.Platforms.Android;
-using Microsoft.Maui.Handlers;
-using Microsoft.Maui.Platform;
-
-namespace Microsoft.Maui;
+﻿namespace Microsoft.Maui;
 
 public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, FrameLayout>
 {
@@ -19,9 +10,9 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
     protected virtual int ItemMaxRecyclerViews => 10;
 
     FrameLayout rootLayout;
-	SwipeRefreshLayout swipeRefreshLayout;
-	RvAdapter adapter;
-	RecyclerView recyclerView;
+	protected SwipeRefreshLayout swipeRefreshLayout;
+	protected RvAdapter adapter;
+	protected RecyclerView recyclerView;
 	LinearLayoutManager layoutManager;
 	Android.Views.View emptyView;
 
@@ -69,9 +60,6 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 			VirtualView?.Scrolled(x, y);
 		}));
 		
-		var itemTouchHelper = new ItemTouchHelper(new RvItemTouchHelperCallback(adapter, swipeRefreshLayout));
-        itemTouchHelper.AttachToRecyclerView(recyclerView);
-
         recyclerView.SetLayoutManager(layoutManager);
 		recyclerView.SetAdapter(adapter);
         recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
