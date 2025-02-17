@@ -155,7 +155,7 @@ internal class CvDataSource : UICollectionViewDataSource
 
         if (this.Handler.PositionalViewSelector.HasGlobalHeader)
         {
-            var headerHashCode = RuntimeHelpers.GetHashCode(this.Handler.VirtualView.Header);
+            var headerHashCode = "GlobalHeader".GetHashCode();
             summedHash = HashCode.Combine(summedHash, headerHashCode);
             itemHashCodes.Add(headerHashCode);
         }
@@ -173,7 +173,7 @@ internal class CvDataSource : UICollectionViewDataSource
 
             for (int i = 0; i < itemsInSection; i++)
             {
-                var itemHashCode = RuntimeHelpers.GetHashCode(adapter.GetItem(s, i));
+                var itemHashCode = adapter.GetItem(s, i).GetHashCode();
                 summedHash = HashCode.Combine(summedHash, itemHashCode);
                 itemHashCodes.Add(itemHashCode);
             }
@@ -188,7 +188,7 @@ internal class CvDataSource : UICollectionViewDataSource
 
         if (this.Handler.PositionalViewSelector.HasGlobalFooter)
         {
-            var footerHashCode = RuntimeHelpers.GetHashCode(this.Handler.VirtualView.Footer);
+            var footerHashCode = "GlobalFooter".GetHashCode();
             summedHash = HashCode.Combine(summedHash, footerHashCode);
             itemHashCodes.Add(footerHashCode);
         }

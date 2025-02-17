@@ -2,11 +2,10 @@
 using Android.Views;
 using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Adapters;
-using static Android.Icu.Text.Transliterator;
 
 namespace Microsoft.Maui;
 
-internal partial class RvAdapter : RecyclerView.Adapter
+public partial class RvAdapter : RecyclerView.Adapter
 {
     readonly VirtualListViewHandler handler;
 
@@ -25,7 +24,7 @@ internal partial class RvAdapter : RecyclerView.Adapter
     public override int ItemCount
         => (cachedItemCount ??= positionalViewSelector?.TotalCount ?? 0);
 
-    internal RvAdapter(Context context,
+    public RvAdapter(Context context,
                        VirtualListViewHandler handler,
                        PositionalViewSelector positionalViewSelector,
                        RecyclerView.RecycledViewPool recycledViewPool,

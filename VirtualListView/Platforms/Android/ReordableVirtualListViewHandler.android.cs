@@ -1,3 +1,4 @@
+using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Controls.Platforms.Android;
 
 namespace Microsoft.Maui;
@@ -24,6 +25,5 @@ public partial class ReordableVirtualListViewHandler
             handler.itemTouchHelper?.Dispose();
             handler.itemTouchHelper = null;
         }
-		
     }
 }

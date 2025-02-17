@@ -4,7 +4,7 @@ using AView = Android.Views.View;
 
 namespace Microsoft.Maui;
 
-sealed class RvViewContainer : Android.Widget.FrameLayout
+public sealed class RvViewContainer : Android.Widget.FrameLayout
 {
     public RvViewContainer(IMauiContext context)
         : base(context.Context ?? throw new ArgumentNullException($"{nameof(context.Context)}"))

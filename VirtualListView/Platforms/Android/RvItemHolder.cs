@@ -3,7 +3,7 @@ using AndroidX.RecyclerView.Widget;
 
 namespace Microsoft.Maui;
 
-internal class RvItemHolder : RecyclerView.ViewHolder
+public class RvItemHolder : RecyclerView.ViewHolder
 {
 	public RvViewContainer ViewContainer { get; private set; }
 	public PositionInfo PositionInfo { get; private set; }

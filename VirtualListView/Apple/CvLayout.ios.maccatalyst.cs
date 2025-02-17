@@ -6,19 +6,36 @@ namespace Microsoft.Maui;
 
 internal sealed class CvLayout : UICollectionViewLayout
 {
-    private int contentHashCode = 0;
-    private List<int> itemPositionCache = [];
-    
+    private nfloat dynamicContentHeight = 0;
+    private nfloat dynamicContentWidth = 0;
+
+    // Cache of layout attributes in order for fast index-based lookup.
+    private List<UICollectionViewLayoutAttributes> cache = [];
+
+    // Previous state of the item hash codes.
+    private List<int> previousItemPositionCache = [];
+
+    // The previously observed content hash code.
+    private int previousContentHashCode = 0;
+
     private UICollectionViewScrollDirection scrollDirection = UICollectionViewScrollDirection.Vertical;
+    private readonly nfloat estimatedMeasurement = 50;
 
     public UICollectionViewScrollDirection ScrollDirection
     {
         get => this.scrollDirection;
         set
         {
-            this.cache.Clear();
+            this.ClearCache();
             this.scrollDirection = value;
         }
+    }
+
+    private void ClearCache()
+    {
+        this.cache.Clear();
+        this.previousItemPositionCache.Clear();
+        this.previousContentHashCode = 0;
     }
 
     public override void InvalidateLayout(UICollectionViewLayoutInvalidationContext context)
@@ -37,13 +54,10 @@ internal sealed class CvLayout : UICollectionViewLayout
         base.InvalidateLayout(context);
     }
 
-    private List<UICollectionViewLayoutAttributes> cache = new();
-    private nfloat dynamicContentHeight = 0;
-    private nfloat dynamicContentWidth = 0;
-
     private nfloat ContentWidth => CollectionView?.Bounds.Width ?? 0;
+
     private nfloat ContentHeight => CollectionView?.Bounds.Height ?? 0;
-    
+
     private CvDataSource DataSource => (CvDataSource)CollectionView.DataSource;
 
     public override CGSize CollectionViewContentSize => this.ScrollDirection == UICollectionViewScrollDirection.Vertical
@@ -52,35 +66,46 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
-        if (CollectionView == null || DataSource.ContentHashCode == this.contentHashCode)
+        if (CollectionView == null || DataSource.ContentHashCode == this.previousContentHashCode)
         {
             return;
         }
 
-        
-        int numberOfItems = (int)CollectionView.DataSource.GetItemsCount(CollectionView, 0);
+        // We'll build a new cache list in the proper order, and a new dictionary for the updated items.
+        var newCache = new List<UICollectionViewLayoutAttributes>();
+        var previousItemLookUp = new Dictionary<int, CGSize>();
 
-        if (numberOfItems == this.cache.Count)
+        for (var i = 0; i < this.previousItemPositionCache.Count; i++)
         {
-            return;
+            int hashCode = this.previousItemPositionCache[i];
+            CGSize size = this.cache[i].Frame.Size;
+            previousItemLookUp.Add(hashCode, size);
         }
 
-        cache.Clear();
+        IReadOnlyList<int> newItemHashes = DataSource.ItemPositionCache;
         nfloat dynamicContentMeasurement = 0;
 
-        nfloat estimatedMeasurement = 50; // Default estimated height
-
-        for (int i = 0; i < numberOfItems; i++)
+        for (var index = 0; index < newItemHashes.Count; index++)
         {
-            NSIndexPath indexPath = NSIndexPath.FromItemSection(i, 0);
-            var attributes = UICollectionViewLayoutAttributes.CreateForCell(indexPath);
-            attributes.Frame = this.ScrollDirection == UICollectionViewScrollDirection.Vertical
-                ? new CGRect(0, dynamicContentMeasurement, ContentWidth, estimatedMeasurement)
-                : new CGRect(dynamicContentMeasurement, 0, estimatedMeasurement, ContentHeight);
+            int newHash = newItemHashes[index];
 
-            cache.Add(attributes);
-            dynamicContentMeasurement += estimatedMeasurement;
+            // If the attribute exists in the cached dictionary, reuse it.
+            var frame = previousItemLookUp.TryGetValue(newHash, out var size)
+                ? this.CreateFrame(dynamicContentMeasurement, size)
+                : this.CreateDefaultFrame(dynamicContentMeasurement);
+
+            var attribute = CreateAttributes(index, frame);
+            newCache.Add(attribute);
+
+            dynamicContentMeasurement += this.ScrollDirection == UICollectionViewScrollDirection.Vertical
+                ? frame.Height
+                : frame.Width;
         }
+
+        // Update our cache and dictionary to reflect the current state.
+        cache = newCache;
+        previousItemPositionCache = newItemHashes.ToList();
+        previousContentHashCode = DataSource.ContentHashCode;
 
         if (this.ScrollDirection == UICollectionViewScrollDirection.Vertical)
         {
@@ -90,6 +115,28 @@ internal sealed class CvLayout : UICollectionViewLayout
         {
             this.dynamicContentWidth = dynamicContentMeasurement;
         }
+    }
+
+    private static UICollectionViewLayoutAttributes CreateAttributes(int index, CGRect frame)
+    {
+        NSIndexPath indexPath = NSIndexPath.FromItemSection(index, 0);
+        var attributes = UICollectionViewLayoutAttributes.CreateForCell(indexPath);
+        attributes.Frame = frame;
+        return attributes;
+    }
+
+    private CGRect CreateFrame(nfloat dynamicContentMeasurement, CGSize size)
+    {
+        return this.ScrollDirection == UICollectionViewScrollDirection.Vertical
+            ? new CGRect(0, dynamicContentMeasurement, ContentWidth, size.Height)
+            : new CGRect(dynamicContentMeasurement, 0, size.Width, ContentHeight);
+    }
+
+    private CGRect CreateDefaultFrame(nfloat dynamicContentMeasurement)
+    {
+        return this.ScrollDirection == UICollectionViewScrollDirection.Vertical
+            ? new CGRect(0, dynamicContentMeasurement, ContentWidth, estimatedMeasurement)
+            : new CGRect(dynamicContentMeasurement, 0, estimatedMeasurement, ContentHeight);
     }
 
     public override UICollectionViewLayoutAttributes[] LayoutAttributesForElementsInRect(CGRect rect)
@@ -111,8 +158,8 @@ internal sealed class CvLayout : UICollectionViewLayout
             return;
         }
 
-        nfloat delta = this.ScrollDirection == UICollectionViewScrollDirection.Vertical 
-                ? newFrame.Height - cache[indexPath.Row].Frame.Height
+        nfloat delta = this.ScrollDirection == UICollectionViewScrollDirection.Vertical
+            ? newFrame.Height - cache[indexPath.Row].Frame.Height
             : newFrame.Width - cache[indexPath.Row].Frame.Width;
 
         if (delta == 0)
@@ -120,7 +167,7 @@ internal sealed class CvLayout : UICollectionViewLayout
             return;
         }
 
-        cache[indexPath.Row].Frame = this.ScrollDirection == UICollectionViewScrollDirection.Vertical 
+        cache[indexPath.Row].Frame = this.ScrollDirection == UICollectionViewScrollDirection.Vertical
             ? new CGRect(0, cache[indexPath.Row].Frame.Y, ContentWidth, newFrame.Height)
             : new CGRect(cache[indexPath.Row].Frame.X, 0, newFrame.Width, ContentHeight);
 
@@ -165,7 +212,7 @@ internal sealed class CvLayout : UICollectionViewLayout
         {
             HorizontalList();
         }
-        
+
         void VerticalList()
         {
             nfloat calculatedY = 0;
@@ -174,7 +221,7 @@ internal sealed class CvLayout : UICollectionViewLayout
                 cache[i].Frame = new CGRect(cache[i].Frame.X, calculatedY, ContentWidth, cache[i].Frame.Height);
                 calculatedY += cache[i].Frame.Height;
             }
-            
+
             this.dynamicContentHeight = calculatedY;
         }
 
@@ -186,7 +233,7 @@ internal sealed class CvLayout : UICollectionViewLayout
                 cache[i].Frame = new CGRect(calculatedX, cache[i].Frame.Y, cache[i].Frame.Width, ContentHeight);
                 calculatedX += cache[i].Frame.Width;
             }
-            
+
             this.dynamicContentWidth = calculatedX;
         }
     }

@@ -1,4 +1,12 @@
-﻿namespace Microsoft.Maui;
+﻿using Android.Views;
+using Android.Widget;
+using AndroidX.RecyclerView.Widget;
+using AndroidX.SwipeRefreshLayout.Widget;
+using Microsoft.Maui.Controls.PlatformConfiguration;
+using Microsoft.Maui.Handlers;
+using Microsoft.Maui.Platform;
+
+namespace Microsoft.Maui;
 
 public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, FrameLayout>
 {

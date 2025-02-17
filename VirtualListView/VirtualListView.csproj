@@ -26,7 +26,6 @@
 		<DebugType>portable</DebugType>
 		<DebugSymbols>true</DebugSymbols>
 		<MauiVersion>8.0.92</MauiVersion>
-		
 	</PropertyGroup>
 
 	<ItemGroup>		
