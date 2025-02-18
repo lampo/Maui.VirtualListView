@@ -66,6 +66,11 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
+        // foreach (var attribute in this.cache)
+        // {
+        //     Console.WriteLine("PrepereLayout: " + attribute);
+        // }
+        
         if (CollectionView == null || DataSource.ContentHashCode == this.previousContentHashCode)
         {
             return;
@@ -146,6 +151,7 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override UICollectionViewLayoutAttributes LayoutAttributesForItem(NSIndexPath indexPath)
     {
+        Console.WriteLine($"LayoutAttributesForItem: (0-{indexPath.Row}), {cache[indexPath.Row].Frame}");
         return cache[indexPath.Row];
     }
 
@@ -235,6 +241,27 @@ internal sealed class CvLayout : UICollectionViewLayout
             }
 
             this.dynamicContentWidth = calculatedX;
+        }
+    }
+
+    private void Dump()
+    {
+        Console.WriteLine("Dumping Visible Cells");
+        foreach (var cell in this.CollectionView.Subviews.OfType<CvCell>().OrderBy(cell => cell.PositionInfo.Position))
+        {
+            string label = null;
+            if (cell.VirtualView.TryGetTarget(out var view) && view is BindableObject { BindingContext: not null } bindable)
+            {
+                var type = bindable.BindingContext.GetType();
+                label = type.GetProperty("Label")?.GetValue(bindable.BindingContext)?.ToString(); 
+            }
+            Console.WriteLine($"Position: {cell.PositionInfo.Position}, Frame: {cell.Frame}, Label: {label}");
+        }
+        
+        Console.WriteLine("Dumping Layout Attributes");
+        foreach (var attr in this.cache)
+        {
+            Console.WriteLine($"Position: {attr.IndexPath.Row}, Frame: {attr.Frame}");
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using CoreGraphics;
+﻿using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Platform;
 using UIKit;
@@ -10,16 +9,7 @@ internal class CvCell : UICollectionViewCell
 {
     internal const string ReuseIdUnknown = "UNKNOWN";
 
-    // public CvCell()
-    // {
-    // 	this.AutosizesSubviews = true;
-    // 	this.AutoresizingMask = UIViewAutoresizing.FlexibleDimensions;
-    // 	this.ContentMode = UIViewContentMode.Redraw;
-    // }
-
     public VirtualListViewHandler Handler { get; set; }
-
-    public WeakReference<NSIndexPath> IndexPath { get; set; }
 
     public PositionInfo PositionInfo { get; private set; }
 
@@ -130,17 +120,22 @@ internal class CvCell : UICollectionViewCell
     public override void PrepareForReuse()
     {
         base.PrepareForReuse();
+        
+        Console.WriteLine("PrepereForReuse: " + PositionInfo?.Position);
 
         // TODO: Recycle
-        if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
-            && (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
-        {
-            reuseCallback?.Invoke(virtualView);
-        }
+        // if ((VirtualView?.TryGetTarget(out var virtualView) ?? false)
+        //     && (ReuseCallback?.TryGetTarget(out var reuseCallback) ?? false))
+        // {
+        //     Console.WriteLine("PrepereForReuse " + virtualView);
+        //     reuseCallback?.Invoke(virtualView);
+        // }
     }
-
+    
     public void SetupView(IView view)
     {
+        Console.WriteLine($"SetupView {view}, Position: {PositionInfo?.Position}");
+        
         // Create a new platform native view if we don't have one yet
         if (!(NativeView?.TryGetTarget(out var _) ?? false))
         {
@@ -177,6 +172,10 @@ internal class CvCell : UICollectionViewCell
         
         // check new size
         var newAttributes = this.PreferredLayoutAttributesFittingAttributes(layoutAttribtues);
+        
+        // var collectionView = this.Superview as UICollectionView;
+        // var layout = collectionView?.CollectionViewLayout as CvLayout;
+        // layout?.InvalidateLayout();
         
         // if the content size has changed, we need to invalidate the layout
         if (newAttributes.Frame.Width != oldWidth || newAttributes.Frame.Height != oldHeight)

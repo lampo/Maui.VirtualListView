@@ -17,6 +17,8 @@ internal class CvDataSource : UICollectionViewDataSource
 
     VirtualListViewHandler Handler { get; }
 
+    readonly Dictionary<string, NSString> managedIds = new();
+    
     readonly ReusableIdManager itemIdManager = new ReusableIdManager("Item");
     readonly ReusableIdManager globalIdManager = new ReusableIdManager("Global");
 
@@ -35,69 +37,79 @@ internal class CvDataSource : UICollectionViewDataSource
     public override nint NumberOfSections(UICollectionView collectionView)
         => 1;
 
+    private NSString GetResuseId(UICollectionView collectionView, string managedId)
+    {
+        if (managedIds.TryGetValue(managedId, out var reuseId))
+            return reuseId;
+
+        reuseId = new NSString(managedId);
+        managedIds.Add(managedId, reuseId);
+        collectionView.RegisterClassForCell(
+        		typeof(CvCell),
+        		reuseId);
+        return reuseId;
+    }
+
+    private object _lock = new object();
+    
     public override UICollectionViewCell GetCell(UICollectionView collectionView, NSIndexPath indexPath)
     {
-        var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
-
-        object? data = null;
-
-        var nativeReuseId = CvCell.ReuseIdUnknown;
-
-        if (info is not null)
+        lock (this._lock)
         {
-            data = Handler?.PositionalViewSelector?.Adapter?.DataFor(info.Kind, info.SectionIndex, info.ItemIndex);
+            var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Row);
 
-            var reuseId = Handler?.PositionalViewSelector?.ViewSelector?.GetReuseId(info, data);
+            object? data = null;
 
-            nativeReuseId = info.Kind switch
+            var nativeReuseId = CvCell.ReuseIdUnknown;
+
+            if (info is not null)
             {
-                PositionKind.Item => itemIdManager.GetReuseId(collectionView, reuseId),
-                PositionKind.SectionHeader => sectionHeaderIdManager.GetReuseId(collectionView, reuseId),
-                PositionKind.SectionFooter => sectionFooterIdManager.GetReuseId(collectionView, reuseId),
-                PositionKind.Header => globalIdManager.GetReuseId(collectionView, reuseId),
-                PositionKind.Footer => globalIdManager.GetReuseId(collectionView, reuseId),
-                _ => CvCell.ReuseIdUnknown,
-            };
-        }
+                data = Handler?.PositionalViewSelector?.Adapter?.DataFor(info.Kind, info.SectionIndex, info.ItemIndex);
 
-        var nativeCell = collectionView.DequeueReusableCell(nativeReuseId, indexPath);
-        if (nativeCell is not CvCell cell)
-            return (UICollectionViewCell)nativeCell;
-
-        cell.SetTapHandlerCallback(TapCellHandler);
-        cell.Handler = Handler;
-        cell.IndexPath = new WeakReference<NSIndexPath>(indexPath);
-
-        cell.ReuseCallback = new WeakReference<Action<IView>>((rv) =>
-        {
-            if (info is not null && (cell.VirtualView?.TryGetTarget(out var cellView) ?? false))
-                Handler?.VirtualView?.ViewSelector?.ViewDetached(info, cellView);
-        });
-
-        if (info is not null)
-        {
-            if (info.SectionIndex < 0 || info.ItemIndex < 0)
-                info.IsSelected = false;
-            else
-                info.IsSelected = Handler?.IsItemSelected(info.SectionIndex, info.ItemIndex) ?? false;
-
-            if (cell.NeedsView)
-            {
-                var view = Handler?.PositionalViewSelector?.ViewSelector?.CreateView(info, data);
-                if (view is not null)
-                    cell.SetupView(view);
+                var reuseId = Handler?.PositionalViewSelector?.ViewSelector?.GetReuseId(info, data) ?? "UNKNOWN";
+                nativeReuseId = this.GetResuseId(collectionView, reuseId);
             }
 
-            cell.UpdatePosition(info);
+            Console.WriteLine(
+                $"GetCell index: (0-{indexPath.Row}), reuseId: {nativeReuseId}, info position: {info?.Position}, position Kind: {info?.Kind}");
 
-            if (cell.VirtualView?.TryGetTarget(out var cellVirtualView) ?? false)
+            var nativeCell = collectionView.DequeueReusableCell(nativeReuseId, indexPath);
+            if (nativeCell is not CvCell cell)
             {
-                Handler?.PositionalViewSelector?.ViewSelector?.RecycleView(info, data, cellVirtualView);
-                Handler?.VirtualView?.ViewSelector?.ViewAttached(info, cellVirtualView);
+                return (UICollectionViewCell)nativeCell;
             }
-        }
 
-        return cell;
+
+            cell.SetTapHandlerCallback(TapCellHandler);
+            cell.Handler = Handler;
+
+            if (info is not null)
+            {
+                if (info.SectionIndex < 0 || info.ItemIndex < 0)
+                    info.IsSelected = false;
+                else
+                    info.IsSelected = Handler?.IsItemSelected(info.SectionIndex, info.ItemIndex) ?? false;
+
+                if (cell.NeedsView)
+                {
+                    Console.WriteLine("Cell needs view");
+                    var view = Handler?.PositionalViewSelector?.ViewSelector?.CreateView(info, data);
+                    if (view is not null)
+                        cell.SetupView(view);
+                }
+
+                cell.UpdatePosition(info);
+
+                if (cell.VirtualView?.TryGetTarget(out var cellVirtualView) ?? false)
+                {
+                    Handler?.PositionalViewSelector?.ViewSelector?.RecycleView(info, data, cellVirtualView);
+                    Handler?.VirtualView?.ViewSelector?.ViewAttached(info, cellVirtualView);
+                }
+            }
+
+            Console.WriteLine("Return Cell");
+            return cell;
+        }
     }
 
     void TapCellHandler(CvCell cell)

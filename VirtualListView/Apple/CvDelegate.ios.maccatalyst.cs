@@ -67,6 +67,7 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 		var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
 		return (info?.Kind ?? PositionKind.Header) == PositionKind.Item;
 	}
+	
 
     public override NSIndexPath GetTargetIndexPathForMove(UICollectionView collectionView, NSIndexPath originalIndexPath, NSIndexPath proposedIndexPath)
     {
@@ -94,12 +95,4 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 
         //return targetIndexPath;
     }
-
-  //   public override CGSize GetSizeForItem(UICollectionView collectionView, UICollectionViewLayout layout, NSIndexPath indexPath)
-  //   {
-	 //    
-	 //    var size = base.GetSizeForItem(collectionView, layout, indexPath);
-		// Console.WriteLine($"GetSizeForItem: Path: {indexPath}" + size);
-	 //    return size;
-  //   }
 }
