@@ -373,32 +373,34 @@ public partial class VirtualListView : View, IVirtualListView, IVirtualListViewS
 
     public string GetReuseId(PositionInfo position, object? data) => GetReuseIdAndView(position, data).reuseId;
 
-    public (string reuseId, object? view) GetReuseIdAndView(PositionInfo position, object? data)
+    public (string reuseId, object? view) GetReuseIdAndView(PositionInfo position, object? data) => this.GetReuseIdAndView(position.Kind, position.SectionIndex, position.ItemIndex, data);
+    
+    public (string reuseId, object? view) GetReuseIdAndView(PositionKind kind, int sectionIndex, int itemIndex, object? data)
     {
-        switch (position.Kind)
+        switch (kind)
         {
             case PositionKind.Item:
-                var itemTemplate = this.ItemTemplateSelector?.SelectTemplate(data, position.SectionIndex, position.ItemIndex)
-                               ?? this.ItemTemplate;
+                var itemTemplate = this.ItemTemplateSelector?.SelectTemplate(data, sectionIndex, itemIndex)
+                                   ?? this.ItemTemplate;
                 var itemTemplateId = itemTemplate?.GetDataTemplateId()
-                       ?? "0";
+                                     ?? "0";
                 return ("ITEM_"
-                       + itemTemplateId, itemTemplate);
+                        + itemTemplateId, itemTemplate);
             case PositionKind.SectionHeader:
-                var sectionHeaderTemplate = this.SectionHeaderTemplateSelector?.SelectTemplate(data, position.SectionIndex)
-                               ?? this.SectionHeaderTemplate;
+                var sectionHeaderTemplate = this.SectionHeaderTemplateSelector?.SelectTemplate(data, sectionIndex)
+                                            ?? this.SectionHeaderTemplate;
 
                 var sectionHeaderTemplateId = sectionHeaderTemplate?.GetDataTemplateId()
-                       ?? "0";
+                                              ?? "0";
                 return ("SECTION_HEADER_"
-                       + sectionHeaderTemplateId, sectionHeaderTemplate);
+                        + sectionHeaderTemplateId, sectionHeaderTemplate);
             case PositionKind.SectionFooter:
-                var sectionFooterTemplate = this.SectionFooterTemplateSelector?.SelectTemplate(data, position.SectionIndex)
-                               ?? this.SectionFooterTemplate;
+                var sectionFooterTemplate = this.SectionFooterTemplateSelector?.SelectTemplate(data, sectionIndex)
+                                            ?? this.SectionFooterTemplate;
                 var sectionFooterTemplateId = sectionFooterTemplate?.GetDataTemplateId()
-                       ?? "0";
+                                              ?? "0";
                 return ("SECTION_FOOTER_"
-                       + sectionFooterTemplateId, sectionFooterTemplate);
+                        + sectionFooterTemplateId, sectionFooterTemplate);
             case PositionKind.Header:
                 return ("GLOBAL_HEADER_" + (this.Header?.GetType()?.FullName ?? "NIL"), this.Header);
             case PositionKind.Footer:

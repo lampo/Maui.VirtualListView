@@ -12,6 +12,8 @@ public interface IVirtualListViewSelector
     string GetReuseId(PositionInfo position, object? data);
 
     (string reuseId, object? view) GetReuseIdAndView(PositionInfo position, object? data);
+    
+	(string reuseId, object? view) GetReuseIdAndView(PositionKind kind, int sectionIndex, int itemIndex, object? data);
 
 	void ViewDetached(PositionInfo position, IView view)
 	{ }

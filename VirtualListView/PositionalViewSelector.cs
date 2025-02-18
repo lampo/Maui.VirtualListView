@@ -168,5 +168,4 @@ public class PositionalViewSelector
 			Kind = PositionKind.Footer,
 		};
 	}
-
 }
