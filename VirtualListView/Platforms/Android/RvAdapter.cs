@@ -202,7 +202,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         }
         suspendNotifications = true;
 
-        if (!((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnMoveItem(fromPosition, toPosition))
+        if (!((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).CanMoveItem(fromPosition, toPosition))
         {
             return false;
         }

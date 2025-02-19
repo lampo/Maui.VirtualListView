@@ -11,18 +11,18 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 		: base()
 	{
 		Handler = handler;
-        this.viewController = viewController;
+		this.viewController = viewController;
 		var collectionView = viewController.CollectionView;
-        NativeCollectionView = new WeakReference<UICollectionView>(collectionView);
+		NativeCollectionView = new WeakReference<UICollectionView>(collectionView);
 		collectionView.RegisterClassForCell(typeof(CvCell), CvCell.ReuseIdUnknown);
 	}
 
 	internal readonly WeakReference<UICollectionView> NativeCollectionView;
 	internal readonly VirtualListViewHandler Handler;
-    private readonly VirtualListViewController viewController;
+	private readonly VirtualListViewController viewController;
 
-    public Action<NFloat, NFloat> ScrollHandler { get; set; }
-    
+	public Action<NFloat, NFloat> ScrollHandler { get; set; }
+
 	public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
 		=> HandleSelection(collectionView, indexPath, true);
 
@@ -39,8 +39,7 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 
 			if (selectedCell.PositionInfo is not null)
 			{
-				var itemPos = new ItemPosition(
-					selectedCell.PositionInfo.SectionIndex,
+				var itemPos = new ItemPosition(selectedCell.PositionInfo.SectionIndex,
 					selectedCell.PositionInfo.ItemIndex);
 
 				if (selected)
@@ -67,32 +66,4 @@ internal class CvDelegate : UICollectionViewDelegateFlowLayout
 		var info = Handler?.PositionalViewSelector?.GetInfo(indexPath.Item.ToInt32());
 		return (info?.Kind ?? PositionKind.Header) == PositionKind.Item;
 	}
-	
-
-    public override NSIndexPath GetTargetIndexPathForMove(UICollectionView collectionView, NSIndexPath originalIndexPath, NSIndexPath proposedIndexPath)
-    {
-		Console.WriteLine("GetTargetIndexPathForMove");
-        NSIndexPath targetIndexPath;
-        // var layout = (CvLayout)collectionView.CollectionViewLayout;
-        // layout.GetTargetIndexPathForMove(originalIndexPath, proposedIndexPath);
-		return proposedIndexPath;
-        //var itemsView = viewController?.Item;
-        //if (itemsView?.IsGrouped == true)
-        //{
-        //    if (originalIndexPath.Section == proposedIndexPath.Section || itemsView.CanMixGroups)
-        //    {
-        //        targetIndexPath = proposedIndexPath;
-        //    }
-        //    else
-        //    {
-        //        targetIndexPath = originalIndexPath;
-        //    }
-        //}
-        //else
-        //{
-        //    targetIndexPath = proposedIndexPath;
-        //}
-
-        //return targetIndexPath;
-    }
 }

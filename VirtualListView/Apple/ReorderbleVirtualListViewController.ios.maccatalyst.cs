@@ -51,8 +51,8 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
 
         var item = new NSString($"{indexPath.Item}");
         var dragItem = new UIDragItem(new NSItemProvider(item));
-        dragItem.LocalObject = indexPath;
-        session.LocalContext = indexPath;
+        dragItem.LocalObject = new DropSession { From = indexPath.Row };
+        session.LocalContext = new DropSession { From = indexPath.Row }; 
         return [dragItem];
     }
 
@@ -63,19 +63,32 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
         IUIDropSession session,
         NSIndexPath destinationIndexPath)
     {
-        if (session.LocalDragSession is not { LocalContext: NSIndexPath fromLocation } || destinationIndexPath is null)
+        Console.WriteLine("DropSessionDidUpdate: to: {0}", destinationIndexPath);
+        if (session.LocalDragSession is not { LocalContext: DropSession fromLocation } || destinationIndexPath is null)
             return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
 
-        var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
-        var fromInfo = this.Handler.PositionalViewSelector.GetInfo(fromLocation.Item.ToInt32());
+        if (fromLocation.From == destinationIndexPath.Row)
+        {
+            return new UICollectionViewDropProposal(UIDropOperation.Move,
+                UICollectionViewDropIntent.Unspecified);    
+        }
+        
+        var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Row);
+        var fromInfo = this.Handler.PositionalViewSelector.GetInfo(fromLocation.From);
+        
+        Console.WriteLine("DropSessionDidUpdate: from: {0}, to: {1}", fromInfo.Position, desinationInfo.Position);
+        
         if (desinationInfo.Kind != PositionKind.Item
             || !((IReorderableVirtualListViewAdapter
-                )this.Handler.VirtualView.Adapter).OnMoveItem(fromInfo, desinationInfo))
+                )this.Handler.VirtualView.Adapter).CanMoveItem(fromInfo, desinationInfo))
         {
             return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow dropping on items
         }
 
-        session.LocalDragSession.LocalContext = destinationIndexPath;
+        // session.LocalDragSession.LocalContext = new DropSession
+        // {
+        //     From = destinationIndexPath.Row,
+        // };
         return new UICollectionViewDropProposal(UIDropOperation.Move,
             UICollectionViewDropIntent.InsertAtDestinationIndexPath);
     }
@@ -85,14 +98,21 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
     {
         NSIndexPath destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
 
-        if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is NSIndexPath sourceIndexPath)
+        if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is DropSession sourceIndexPath)
         {
             var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
-            var fromInfo = this.Handler.PositionalViewSelector.GetInfo(sourceIndexPath.Item.ToInt32());
+            var fromInfo = this.Handler.PositionalViewSelector.GetInfo(sourceIndexPath.From);
             this.VirtualView.Adapter.OnReorderComplete(fromInfo.SectionIndex,
                 fromInfo.ItemIndex,
                 desinationInfo.SectionIndex,
                 desinationInfo.ItemIndex);
         }
+    }
+
+    private class DropSession : NSObject
+    {
+        public int From { get; init; }
+
+        public int PreviousFrom { get; init; }
     }
 }

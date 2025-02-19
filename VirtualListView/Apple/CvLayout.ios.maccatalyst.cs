@@ -1,4 +1,5 @@
-﻿using CoreGraphics;
+﻿using System.Diagnostics;
+using CoreGraphics;
 using Foundation;
 using UIKit;
 
@@ -10,7 +11,7 @@ internal sealed class CvLayout : UICollectionViewLayout
     private nfloat dynamicContentWidth = 0;
 
     // Cache of layout attributes in order for fast index-based lookup.
-    private List<UICollectionViewLayoutAttributes> cache = [];
+    private List<CGRect> cache = [];
 
     // Previous state of the item hash codes.
     private List<int> previousItemPositionCache = [];
@@ -66,19 +67,19 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
-        if (CollectionView == null || DataSource.ContentHashCode == this.previousContentHashCode)
+        if (CollectionView == null)
         {
             return;
         }
 
         // We'll build a new cache list in the proper order, and a new dictionary for the updated items.
-        var newCache = new List<UICollectionViewLayoutAttributes>();
+        var newCache = new List<CGRect>();
         var previousItemLookUp = new Dictionary<int, CGSize>();
 
         for (var i = 0; i < this.previousItemPositionCache.Count; i++)
         {
             int hashCode = this.previousItemPositionCache[i];
-            CGSize size = this.cache[i].Frame.Size;
+            CGSize size = this.cache[i].Size;
             previousItemLookUp.Add(hashCode, size);
         }
 
@@ -94,8 +95,7 @@ internal sealed class CvLayout : UICollectionViewLayout
                 ? this.CreateFrame(dynamicContentMeasurement, size)
                 : this.CreateDefaultFrame(dynamicContentMeasurement);
 
-            var attribute = CreateAttributes(index, frame);
-            newCache.Add(attribute);
+            newCache.Add(frame);
 
             dynamicContentMeasurement += this.ScrollDirection == UICollectionViewScrollDirection.Vertical
                 ? frame.Height
@@ -141,12 +141,32 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override UICollectionViewLayoutAttributes[] LayoutAttributesForElementsInRect(CGRect rect)
     {
-        return cache.FindAll(attr => attr.Frame.IntersectsWith(rect)).ToArray();
+        var attributes = new List<UICollectionViewLayoutAttributes>();
+
+        for (int i = 0; i < cache.Count; i++)
+        {
+            var frame = cache[i];
+            if (frame.IntersectsWith(rect))
+            {
+                attributes.Add(CreateAttributes(i, frame));
+            }
+            
+            if (frame.Y > rect.Bottom)
+            {
+                break;
+            }
+        }
+        
+        var tempArray = attributes.ToArray();
+        
+        return tempArray;
     }
 
     public override UICollectionViewLayoutAttributes LayoutAttributesForItem(NSIndexPath indexPath)
     {
-        return cache[indexPath.Row];
+        var attributes = UICollectionViewLayoutAttributes.CreateForCell(indexPath);
+        attributes.Frame = this.cache[indexPath.Row];
+        return attributes;
     }
 
     public override bool ShouldInvalidateLayoutForBoundsChange(CGRect newBounds) => true;
@@ -158,21 +178,10 @@ internal sealed class CvLayout : UICollectionViewLayout
             return;
         }
 
-        nfloat delta = this.ScrollDirection == UICollectionViewScrollDirection.Vertical
-            ? newFrame.Height - cache[indexPath.Row].Frame.Height
-            : newFrame.Width - cache[indexPath.Row].Frame.Width;
-
-        if (delta == 0)
-        {
-            return;
-        }
-
-        cache[indexPath.Row].Frame = this.ScrollDirection == UICollectionViewScrollDirection.Vertical
-            ? new CGRect(0, cache[indexPath.Row].Frame.Y, ContentWidth, newFrame.Height)
-            : new CGRect(cache[indexPath.Row].Frame.X, 0, newFrame.Width, ContentHeight);
-
-        // since the content size has changed, we need to update the position of the remaning content
-        this.RebuildCachedFramePositions();
+        var frame = cache[indexPath.Row];
+        frame.Size = newFrame;
+        this.cache[indexPath.Row] = frame;
+        // this.RebuildCachedFramePositions();
     }
 
     public void SwapItemSizesWhileDragging(NSIndexPath fromIndexPath, NSIndexPath toIndexPath)
@@ -185,24 +194,27 @@ internal sealed class CvLayout : UICollectionViewLayout
             return;
         }
 
-        var fromAttributes = cache[fromIndexPath.Row];
-        var toAttributes = cache[toIndexPath.Row];
+        var fromFrame = cache[fromIndexPath.Row];
+        var toFrame = cache[toIndexPath.Row];
 
         // Swap heights normally
-        nfloat tempHeight = fromAttributes.Frame.Height;
-        fromAttributes.Frame = new CGRect(fromAttributes.Frame.X,
-            fromAttributes.Frame.Y,
-            fromAttributes.Frame.Width,
-            toAttributes.Frame.Height);
+        nfloat tempHeight = fromFrame.Height;
+        fromFrame = new CGRect(fromFrame.X,
+            fromFrame.Y,
+            fromFrame.Width,
+            toFrame.Height);
 
-        toAttributes.Frame =
-            new CGRect(toAttributes.Frame.X, toAttributes.Frame.Y, toAttributes.Frame.Width, tempHeight);
+        toFrame =
+            new CGRect(toFrame.X, toFrame.Y, toFrame.Width, tempHeight);
+        
+        cache[fromIndexPath.Row] = fromFrame;
+        cache[toIndexPath.Row] = toFrame;
 
         // resize content in cache
-        this.RebuildCachedFramePositions();
+        // this.RebuildCachedFramePositions();
     }
 
-    private void RebuildCachedFramePositions()
+    private void RebuildCachedFramePositions(int startIndex = 0)
     {
         if (this.ScrollDirection == UICollectionViewScrollDirection.Vertical)
         {
@@ -215,11 +227,13 @@ internal sealed class CvLayout : UICollectionViewLayout
 
         void VerticalList()
         {
-            nfloat calculatedY = 0;
-            for (int i = 0; i < cache.Count; i++)
+            nfloat calculatedY = this.cache[startIndex].Y;
+            for (var index = startIndex; index < this.cache.Count; index++)
             {
-                cache[i].Frame = new CGRect(cache[i].Frame.X, calculatedY, ContentWidth, cache[i].Frame.Height);
-                calculatedY += cache[i].Frame.Height;
+                var frame = this.cache[index];
+                frame.Y = calculatedY;
+                this.cache[index] = frame;
+                calculatedY += frame.Height;
             }
 
             this.dynamicContentHeight = calculatedY;
@@ -228,10 +242,12 @@ internal sealed class CvLayout : UICollectionViewLayout
         void HorizontalList()
         {
             nfloat calculatedX = 0;
-            for (int i = 0; i < cache.Count; i++)
+            for (var index = 0; index < this.cache.Count; index++)
             {
-                cache[i].Frame = new CGRect(calculatedX, cache[i].Frame.Y, cache[i].Frame.Width, ContentHeight);
-                calculatedX += cache[i].Frame.Width;
+                var frame = this.cache[index];
+                frame.X = calculatedX;
+                this.cache[index] = frame;
+                calculatedX += frame.Width;
             }
 
             this.dynamicContentWidth = calculatedX;

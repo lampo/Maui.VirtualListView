@@ -71,9 +71,12 @@ internal class CvDataSource : UICollectionViewDataSource
 
             if (cell.NeedsView)
             {
-                var view = Handler?.PositionalViewSelector?.ViewSelector?.CreateView(info, data);
-                if (view is not null)
+                if (this.Handler?.PositionalViewSelector?.ViewSelector?.CreateView(info, data) is View view)
+                {
                     cell.SetupView(view);
+                    view.BindingContext = data;
+                    Handler?.VirtualView?.ViewSelector?.ViewAttached(info, view);
+                }
             }
 
             cell.UpdatePosition(info);
@@ -81,7 +84,6 @@ internal class CvDataSource : UICollectionViewDataSource
             if (cell.VirtualView?.TryGetTarget(out var cellVirtualView) ?? false)
             {
                 Handler?.PositionalViewSelector?.ViewSelector?.RecycleView(info, data, cellVirtualView);
-                Handler?.VirtualView?.ViewSelector?.ViewAttached(info, cellVirtualView);
             }
         }
 
@@ -128,7 +130,7 @@ internal class CvDataSource : UICollectionViewDataSource
 
         var adapter = Handler?.PositionalViewSelector?.Adapter as IReorderableVirtualListViewAdapter;
 
-        adapter.OnMoveItem(sourceInfo, destinationInfo);
+        adapter.CanMoveItem(sourceInfo, destinationInfo);
     }
 
     private (IReadOnlyList<int> items, int contentHash) BuildItemPositionCache()

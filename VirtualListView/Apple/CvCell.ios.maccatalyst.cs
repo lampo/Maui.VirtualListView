@@ -92,9 +92,9 @@ internal class CvCell : UICollectionViewCell
         var collectionView = this.Superview as UICollectionView;
         var layout = collectionView?.CollectionViewLayout as CvLayout;
         var originalSize = layoutAttributes.Size;
-        layoutAttributes.Frame = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
-            ? GetHorizontalLayoutFrame(virtualView, layoutAttributes)
-            : GetVirtualLayoutFrame(virtualView, layoutAttributes);
+        layoutAttributes = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
+            ? GetHorizontalLayoutAttributes(virtualView, layoutAttributes)
+            : GetVerticalLayoutAttributes(virtualView, layoutAttributes);
         
         if (originalSize != layoutAttributes.Frame.Size)
         {
@@ -121,8 +121,6 @@ internal class CvCell : UICollectionViewCell
     
     public void SetupView(IView view)
     {
-        Console.WriteLine($"SetupView {view}, Position: {PositionInfo?.Position}");
-        
         // Create a new platform native view if we don't have one yet
         if (!(NativeView?.TryGetTarget(out var _) ?? false))
         {
@@ -144,28 +142,30 @@ internal class CvCell : UICollectionViewCell
         {
             VirtualView = new WeakReference<IView>(view);
         }
+        
+        this.SetNeedsLayout();
     }
 
     public override void SetNeedsLayout()
     {
-        // Console.WriteLine("SetNeedsLayout: " + PositionInfo?.Position);
+        var collectionView = this.Superview as UICollectionView;
+        var layout = collectionView?.CollectionViewLayout as CvLayout;
+        
         if (!(this.cachedAttributes?.TryGetTarget(out var layoutAttribtues) ?? false))
         {
+            //layout?.InvalidateLayout();
             base.SetNeedsLayout();
             return;
         }
 
-        var oldWidth = layoutAttribtues.Frame.Width;
-        var oldHeight = layoutAttribtues.Frame.Height;
+        var oldFrame = layoutAttribtues.Frame;
         
         // check new size
         var newAttributes = this.PreferredLayoutAttributesFittingAttributes(layoutAttribtues);
         
         // if the content size has changed, we need to invalidate the layout
-        if (newAttributes.Frame.Width != oldWidth || newAttributes.Frame.Height != oldHeight)
+        if (newAttributes.Frame != oldFrame)
         {
-            var collectionView = this.Superview as UICollectionView;
-            var layout = collectionView?.CollectionViewLayout as CvLayout;
             layout?.InvalidateLayout();
         }
     }
@@ -180,7 +180,7 @@ internal class CvCell : UICollectionViewCell
         }
     }
 
-    private static CGRect GetHorizontalLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    private static UICollectionViewLayoutAttributes GetHorizontalLayoutAttributes(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
     {
         double width;
         // slight optimization to avoid measuring the view if it's already been measured
@@ -194,13 +194,14 @@ internal class CvCell : UICollectionViewCell
             width = virtualView.Width;
         }
 
-        return new CGRect(layoutAttributes.Frame.X,
-            layoutAttributes.Frame.Y,
-            width,
-            layoutAttributes.Frame.Width);
+        var frame = layoutAttributes.Frame;
+        frame.Height = new nfloat(width);
+        layoutAttributes.Frame = frame;
+
+        return layoutAttributes;
     }
 
-    private static CGRect GetVirtualLayoutFrame(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    private static UICollectionViewLayoutAttributes GetVerticalLayoutAttributes(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
     {
         double height;
         // slight optimization to avoid measuring the view if it's already been measured
@@ -214,10 +215,34 @@ internal class CvCell : UICollectionViewCell
             height = virtualView.Height;
         }
 
-        return new CGRect(layoutAttributes.Frame.X,
-            layoutAttributes.Frame.Y,
-            layoutAttributes.Frame.Width,
-            height);
+        var frame = layoutAttributes.Frame;
+        frame.Height = new nfloat(height);
+        layoutAttributes.Frame = frame;
+
+        return layoutAttributes;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+
+        if (disposing)
+        {
+            if (NativeView?.TryGetTarget(out var nativeView) ?? false)
+            {
+                nativeView.RemoveFromSuperview();
+                nativeView.Dispose();
+            }
+
+            if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
+            {
+                virtualView.Handler = null;
+            }
+
+            NativeView = null;
+            VirtualView = null;
+            TapHandler = null;
+        }
     }
 
     class TapHandlerCallback

@@ -25,31 +25,6 @@ public class VirtualListViewController : UICollectionViewController
 
     internal CvDataSource DataSource { get; }
 
-    public override void WillDisplayCell(UICollectionView collectionView, UICollectionViewCell cell, NSIndexPath indexPath)
-    {
-        if (cell is not CvCell cvCell)
-            return;
-        var info = cvCell.PositionInfo;
-        Console.WriteLine($"WillDisplayCell: info: {info?.Position}, cell: {cvCell.PositionInfo?.Position}");
-        // if (info is null || !(cvCell.VirtualView != null && cvCell.VirtualView.TryGetTarget(out var cellView)))
-        // {
-        //     return;
-        // } 
-    }
-
-    public override void CellDisplayingEnded(UICollectionView collectionView, UICollectionViewCell cell, NSIndexPath indexPath)
-    {
-        if (cell is not CvCell cvCell)
-            return;
-        var info = cvCell.PositionInfo;
-        Console.WriteLine($"CellDisplayingEnded: info: {info?.Position}, cell: {cvCell.PositionInfo?.Position}");
-        if (info is null || !(cvCell.VirtualView != null && cvCell.VirtualView.TryGetTarget(out var cellView)))
-        {
-            return;
-        } 
-        
-        Handler?.VirtualView?.ViewSelector?.ViewDetached(info, cellView);
-    }
 
     public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
         => HandleSelection(collectionView, indexPath, true);
@@ -59,7 +34,6 @@ public class VirtualListViewController : UICollectionViewController
 
     void HandleSelection(UICollectionView collectionView, NSIndexPath indexPath, bool selected)
     {
-        //UIView.AnimationsEnabled = false;
         if (collectionView.CellForItem(indexPath) is CvCell selectedCell
             && (selectedCell.PositionInfo?.Kind ?? PositionKind.Header) == PositionKind.Item)
         {
