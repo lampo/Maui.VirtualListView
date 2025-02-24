@@ -26,19 +26,18 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 
 		refreshControl = new UIRefreshControl();
 		refreshControl.Enabled = VirtualView?.IsRefreshEnabled ?? false;
-		refreshControl.AddTarget(new EventHandler((s, a) =>
+		refreshControl.AddTarget((s, a) =>
 		{
-			refreshControl.BeginRefreshing();
+			this.refreshControl.BeginRefreshing();
 			try
 			{
-				VirtualView?.Refresh(() => refreshControl.EndRefreshing());
+				this.VirtualView?.Refresh(() => this.refreshControl.EndRefreshing());
 			}
 			catch
 			{
-				refreshControl.EndRefreshing();
+				this.refreshControl.EndRefreshing();
 			}
-		}), UIControlEvent.ValueChanged);
-		
+		}, UIControlEvent.ValueChanged);
 		return collectionView;
 	}
 

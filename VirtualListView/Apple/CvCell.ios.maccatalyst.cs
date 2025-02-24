@@ -1,4 +1,5 @@
-﻿using CoreGraphics;
+﻿using CoreFoundation;
+using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Platform;
 using UIKit;
@@ -32,6 +33,7 @@ internal class CvCell : UICollectionViewCell
     }
 
     WeakReference<UIKeyCommand[]> keyCommands;
+    private NSIndexPath indexPath;
 
     public override UIKeyCommand[] KeyCommands
     {
@@ -89,19 +91,45 @@ internal class CvCell : UICollectionViewCell
             return layoutAttributes;
         }
 
+        Console.WriteLine("UpdateItemSize: " + layoutAttributes.Frame);
+
+        var newLayoutAttributes = base.PreferredLayoutAttributesFittingAttributes(layoutAttributes);
+
         var collectionView = this.Superview as UICollectionView;
         var layout = collectionView?.CollectionViewLayout as CvLayout;
         var originalSize = layoutAttributes.Size;
-        layoutAttributes = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
-            ? GetHorizontalLayoutAttributes(virtualView, layoutAttributes)
-            : GetVerticalLayoutAttributes(virtualView, layoutAttributes);
-        
-        if (originalSize != layoutAttributes.Frame.Size)
+        var newSize = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
+            ? GetHorizontalLayoutSize(virtualView, originalSize)
+            : GetVerticalLayoutSize(virtualView, originalSize);
+
+        if (originalSize != newSize)
         {
-            layout.UpdateItemSize(layoutAttributes.IndexPath, layoutAttributes.Frame.Size);
+            var frame = newLayoutAttributes.Frame;
+            frame.Size = newSize;
+            newLayoutAttributes.Frame = frame;
+            
+            var info = Handler.PositionalViewSelector.GetInfo(newLayoutAttributes.IndexPath.Item.ToInt32());
+            if (info.Kind == PositionKind.Item)
+            {
+                var data = Handler.PositionalViewSelector.Adapter.GetItem(info.SectionIndex, info.ItemIndex);
+                if (data != ((View)virtualView).BindingContext)
+                {
+                    Console.WriteLine("View Not Recycled");                
+                }                
+            }
+            
+            Console.WriteLine("UpdateItemSize: " + newLayoutAttributes.IndexPath + " " + newSize + " cached Index: " + this.indexPath + " " + this);
+            layout.UpdateItemSize(newLayoutAttributes.IndexPath, layoutAttributes.Frame.Size);
         }
 
-        return layoutAttributes;
+        return newLayoutAttributes;
+    }
+
+    public override void PrepareForReuse()
+    {
+        Console.WriteLine("PrepareForReuse: " + this.indexPath + " " + this);
+        this.indexPath = null;
+        base.PrepareForReuse();
     }
 
     public bool NeedsView
@@ -113,12 +141,13 @@ internal class CvCell : UICollectionViewCell
     public WeakReference<IView> VirtualView { get; set; }
 
     public WeakReference<UIView> NativeView { get; set; }
+
     public override void ApplyLayoutAttributes(UICollectionViewLayoutAttributes? layoutAttributes)
     {
         this.cachedAttributes = new WeakReference<UICollectionViewLayoutAttributes>(layoutAttributes);
         base.ApplyLayoutAttributes(layoutAttributes);
     }
-    
+
     public void SetupView(IView view)
     {
         // Create a new platform native view if we don't have one yet
@@ -142,7 +171,7 @@ internal class CvCell : UICollectionViewCell
         {
             VirtualView = new WeakReference<IView>(view);
         }
-        
+
         this.SetNeedsLayout();
     }
 
@@ -150,28 +179,41 @@ internal class CvCell : UICollectionViewCell
     {
         var collectionView = this.Superview as UICollectionView;
         var layout = collectionView?.CollectionViewLayout as CvLayout;
-        
-        if (!(this.cachedAttributes?.TryGetTarget(out var layoutAttribtues) ?? false))
+
+        if (this.Hidden || this.Bounds.IsEmpty)
+        {
+            //base.SetNeedsLayout();
+            return;
+        }
+
+        if (this.indexPath is null
+            || this.VirtualView is null
+            || !this.VirtualView.TryGetTarget(out var virtualView))
         {
             //layout?.InvalidateLayout();
             base.SetNeedsLayout();
             return;
         }
 
-        var oldFrame = layoutAttribtues.Frame;
-        
+        var originalSize = this.Bounds.Size;
+
         // check new size
-        var newAttributes = this.PreferredLayoutAttributesFittingAttributes(layoutAttribtues);
-        
+        var preferredSize = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
+            ? GetHorizontalLayoutSize(virtualView, originalSize)
+            : GetVerticalLayoutSize(virtualView, originalSize);
+
         // if the content size has changed, we need to invalidate the layout
-        if (newAttributes.Frame != oldFrame)
+        if (preferredSize != originalSize)
         {
-            layout?.InvalidateLayout();
+            Console.WriteLine("SetNeedsLayout: " + this.indexPath + " " + originalSize + " " + preferredSize + " " + this);
+           // layout.LayoutIfNeeded(this.indexPath, preferredSize);
         }
     }
 
-    public void UpdatePosition(PositionInfo positionInfo)
+    public void UpdatePosition(PositionInfo positionInfo, NSIndexPath indexPath)
     {
+        Console.WriteLine($"UpdatePosition: old: {this.indexPath}, new: {indexPath}");
+        this.indexPath = indexPath;
         PositionInfo = positionInfo;
         if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
         {
@@ -180,13 +222,14 @@ internal class CvCell : UICollectionViewCell
         }
     }
 
-    private static UICollectionViewLayoutAttributes GetHorizontalLayoutAttributes(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    private static CGSize GetHorizontalLayoutSize(IView virtualView, CGSize size)
     {
         double width;
+
         // slight optimization to avoid measuring the view if it's already been measured
         if (virtualView.Height is < 0 or double.NaN)
         {
-            var measure = virtualView.Measure(double.PositiveInfinity, layoutAttributes.Size.Height);
+            var measure = virtualView.Measure(double.PositiveInfinity, size.Height);
             width = measure.Width;
         }
         else
@@ -194,20 +237,19 @@ internal class CvCell : UICollectionViewCell
             width = virtualView.Width;
         }
 
-        var frame = layoutAttributes.Frame;
-        frame.Height = new nfloat(width);
-        layoutAttributes.Frame = frame;
+        size.Width = new nfloat(width);
 
-        return layoutAttributes;
+        return size;
     }
 
-    private static UICollectionViewLayoutAttributes GetVerticalLayoutAttributes(IView virtualView, UICollectionViewLayoutAttributes layoutAttributes)
+    private static CGSize GetVerticalLayoutSize(IView virtualView, CGSize originalSize)
     {
         double height;
+
         // slight optimization to avoid measuring the view if it's already been measured
         if (virtualView.Height is < 0 or double.NaN)
         {
-            var measure = virtualView.Measure(layoutAttributes.Size.Width, double.PositiveInfinity);
+            var measure = virtualView.Measure(originalSize.Width, double.PositiveInfinity);
             height = measure.Height;
         }
         else
@@ -215,11 +257,9 @@ internal class CvCell : UICollectionViewCell
             height = virtualView.Height;
         }
 
-        var frame = layoutAttributes.Frame;
-        frame.Height = new nfloat(height);
-        layoutAttributes.Frame = frame;
+        originalSize.Height = new nfloat(height);
 
-        return layoutAttributes;
+        return originalSize;
     }
 
     protected override void Dispose(bool disposing)

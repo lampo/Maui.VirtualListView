@@ -52,7 +52,8 @@ internal class CvDataSource : UICollectionViewDataSource
             var reuseId = Handler?.PositionalViewSelector?.ViewSelector?.GetReuseId(info, data) ?? "UNKNOWN";
             nativeReuseId = this.GetResuseId(collectionView, reuseId);
         }
-
+        
+        Console.WriteLine("GetCell: " + indexPath.Row + " " + nativeReuseId);
         var nativeCell = collectionView.DequeueReusableCell(nativeReuseId, indexPath);
         if (nativeCell is not CvCell cell)
         {
@@ -79,7 +80,7 @@ internal class CvDataSource : UICollectionViewDataSource
                 }
             }
 
-            cell.UpdatePosition(info);
+            cell.UpdatePosition(info, indexPath);
 
             if (cell.VirtualView?.TryGetTarget(out var cellVirtualView) ?? false)
             {

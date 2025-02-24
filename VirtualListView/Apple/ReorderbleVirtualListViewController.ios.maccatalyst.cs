@@ -63,7 +63,6 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
         IUIDropSession session,
         NSIndexPath destinationIndexPath)
     {
-        Console.WriteLine("DropSessionDidUpdate: to: {0}", destinationIndexPath);
         if (session.LocalDragSession is not { LocalContext: DropSession fromLocation } || destinationIndexPath is null)
             return new UICollectionViewDropProposal(UIDropOperation.Forbidden); // Only allow internal drags
 
@@ -75,8 +74,6 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
         
         var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Row);
         var fromInfo = this.Handler.PositionalViewSelector.GetInfo(fromLocation.From);
-        
-        Console.WriteLine("DropSessionDidUpdate: from: {0}, to: {1}", fromInfo.Position, desinationInfo.Position);
         
         if (desinationInfo.Kind != PositionKind.Item
             || !((IReorderableVirtualListViewAdapter
@@ -98,10 +95,12 @@ public class ReorderbleVirtualListViewController : VirtualListViewController,
     {
         NSIndexPath destinationIndexPath = coordinator.DestinationIndexPath ?? NSIndexPath.FromItemSection(0, 0);
 
-        if (coordinator.Items.Length > 0 && coordinator.Items[0].DragItem.LocalObject is DropSession sourceIndexPath)
+        if (coordinator.Items.Length > 0)
         {
-            var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Item.ToInt32());
-            var fromInfo = this.Handler.PositionalViewSelector.GetInfo(sourceIndexPath.From);
+            var sourceIndexPath = coordinator.Items[0].SourceIndexPath;
+            var desinationInfo = this.Handler.PositionalViewSelector.GetInfo(destinationIndexPath.Row);
+            var fromInfo = this.Handler.PositionalViewSelector.GetInfo(sourceIndexPath.Row);
+            collectionView.MoveItem(sourceIndexPath, destinationIndexPath);
             this.VirtualView.Adapter.OnReorderComplete(fromInfo.SectionIndex,
                 fromInfo.ItemIndex,
                 desinationInfo.SectionIndex,

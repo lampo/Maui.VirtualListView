@@ -41,6 +41,7 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void InvalidateLayout(UICollectionViewLayoutInvalidationContext context)
     {
+        // Console.WriteLine("InvalidateLayout");
         if (context is
             {
                 PreviousIndexPathsForInteractivelyMovingItems: not null,
@@ -67,11 +68,11 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override void PrepareLayout()
     {
-        if (CollectionView == null)
+        if (CollectionView == null || DataSource.ContentHashCode == this.previousContentHashCode)
         {
             return;
         }
-
+        
         // We'll build a new cache list in the proper order, and a new dictionary for the updated items.
         var newCache = new List<CGRect>();
         var previousItemLookUp = new Dictionary<int, CGSize>();
@@ -171,17 +172,17 @@ internal sealed class CvLayout : UICollectionViewLayout
 
     public override bool ShouldInvalidateLayoutForBoundsChange(CGRect newBounds) => true;
 
-    public void UpdateItemSize(NSIndexPath indexPath, CGSize newFrame)
+    public void UpdateItemSize(NSIndexPath indexPath, CGSize newSize)
     {
         if (indexPath.Row >= cache.Count)
         {
             return;
         }
-
+        
         var frame = cache[indexPath.Row];
-        frame.Size = newFrame;
+        frame.Size = newSize;
         this.cache[indexPath.Row] = frame;
-        // this.RebuildCachedFramePositions();
+        this.RebuildCachedFramePositions();
     }
 
     public void SwapItemSizesWhileDragging(NSIndexPath fromIndexPath, NSIndexPath toIndexPath)
@@ -193,7 +194,7 @@ internal sealed class CvLayout : UICollectionViewLayout
         {
             return;
         }
-
+        
         var fromFrame = cache[fromIndexPath.Row];
         var toFrame = cache[toIndexPath.Row];
 
@@ -211,7 +212,28 @@ internal sealed class CvLayout : UICollectionViewLayout
         cache[toIndexPath.Row] = toFrame;
 
         // resize content in cache
-        // this.RebuildCachedFramePositions();
+        this.RebuildCachedFramePositions();
+    }
+    
+    public void LayoutIfNeeded(NSIndexPath indexPath, CGSize preferredSize)
+    {
+        if (indexPath.Row >= cache.Count)
+        {
+            return;
+        }
+
+        var frame = cache[indexPath.Row];
+        if (frame.Size == preferredSize)
+        {
+            return;
+        }
+        
+        Console.WriteLine("LayoutIfNeeded");
+        
+        frame.Size = preferredSize;
+        this.cache[indexPath.Row] = frame;
+        this.RebuildCachedFramePositions();
+        this.InvalidateLayout();
     }
 
     private void RebuildCachedFramePositions(int startIndex = 0)
@@ -227,7 +249,7 @@ internal sealed class CvLayout : UICollectionViewLayout
 
         void VerticalList()
         {
-            nfloat calculatedY = this.cache[startIndex].Y;
+            nfloat calculatedY = 0; // this.cache[startIndex].Y;
             for (var index = startIndex; index < this.cache.Count; index++)
             {
                 var frame = this.cache[index];
