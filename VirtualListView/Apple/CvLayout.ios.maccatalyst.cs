@@ -94,7 +94,7 @@ internal sealed class CvLayout : UICollectionViewLayout
             var frame = previousItemLookUp.TryGetValue(newHash, out var size)
                 ? this.CreateFrame(dynamicContentMeasurement, size)
                 : this.CreateDefaultFrame(dynamicContentMeasurement);
-
+            
             newCache.Add(frame);
 
             dynamicContentMeasurement += this.ScrollDirection == UICollectionViewScrollDirection.Vertical
@@ -253,25 +253,39 @@ internal sealed class CvLayout : UICollectionViewLayout
             this.dynamicContentWidth = calculatedX;
         }
     }
-
-    private void Dump()
+    
+    public CGRect GetFrame(int index)
     {
-        Console.WriteLine("Dumping Visible Cells");
-        foreach (var cell in this.CollectionView.Subviews.OfType<CvCell>().OrderBy(cell => cell.PositionInfo.Position))
+        return this.cache[index];
+    }
+    
+
+    public void Dump()
+    {
+        Debug.WriteLine("Dumping Visible Cells");
+        foreach (var cell in this.CollectionView.Subviews.OfType<CvCell>().OrderBy(cell => cell.PositionInfo?.Position ?? -1))
         {
+            if (cell.PositionInfo?.Position is < 9 or > 12)
+            {
+                continue;
+            }
+            
             string label = null;
             if (cell.VirtualView.TryGetTarget(out var view) && view is BindableObject { BindingContext: not null } bindable)
             {
                 var type = bindable.BindingContext.GetType();
                 label = type.GetProperty("Label")?.GetValue(bindable.BindingContext)?.ToString(); 
             }
-            Console.WriteLine($"Position: {cell.PositionInfo.Position}, Frame: {cell.Frame}, Label: {label}");
+
+            var visibleIndex = this.CollectionView.IndexPathForCell(cell);
+            Debug.WriteLine($"Position: {cell.PositionInfo?.Position ?? -1}, Index: {visibleIndex.Row}, Frame: {cell.Frame}, Label: {label}, Hidden: {cell.Hidden}");;
         }
         
-        // Console.WriteLine("Dumping Layout Attributes");
-        // foreach (var attr in this.cache)
-        // {
-        //     Console.WriteLine($"Position: {attr.IndexPath.Row}, Frame: {attr.Frame}");
-        // }
+        Debug.WriteLine("Dumping Layout Attributes");
+        for (var index = 9; index < 13; index++)
+        {
+            var attr = this.cache[index];
+            Debug.WriteLine($"Position: {index}, Frame: {attr}");
+        }
     }
 }

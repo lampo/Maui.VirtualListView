@@ -1,4 +1,5 @@
-﻿using CoreGraphics;
+﻿using System.Diagnostics;
+using CoreGraphics;
 using Foundation;
 using Microsoft.Maui.Platform;
 using UIKit;
@@ -146,32 +147,39 @@ internal class CvCell : UICollectionViewCell
         this.SetNeedsLayout();
     }
 
-    public override void SetNeedsLayout()
+    public override void PrepareForReuse()
     {
-        var collectionView = this.Superview as UICollectionView;
-        var layout = collectionView?.CollectionViewLayout as CvLayout;
-        
-        if (!(this.cachedAttributes?.TryGetTarget(out var layoutAttribtues) ?? false))
-        {
-            //layout?.InvalidateLayout();
-            base.SetNeedsLayout();
-            return;
-        }
-
-        var oldFrame = layoutAttribtues.Frame;
-        
-        // check new size
-        var newAttributes = this.PreferredLayoutAttributesFittingAttributes(layoutAttribtues);
-        
-        // if the content size has changed, we need to invalidate the layout
-        if (newAttributes.Frame != oldFrame)
-        {
-            layout?.InvalidateLayout();
-        }
+        PositionInfo = null;
+        base.PrepareForReuse();
     }
+
+    // TOOD: figure out how to dynamically update the layout
+    // public override void SetNeedsLayout()
+    // {
+    //     var collectionView = this.Superview as UICollectionView;
+    //     var layout = collectionView?.CollectionViewLayout as CvLayout;
+    //     
+    //     if (this.VirtualView is null || !this.VirtualView.TryGetTarget(out var virtualView))
+    //     {
+    //         base.SetNeedsLayout();
+    //         return;
+    //     }
+    //
+    //     var oldFrame = this.Frame;
+    //     
+    //     // check new size
+    //     var newFrame = GetVerticalLayoutFrame(virtualView, this.Frame);
+    //     
+    //     // if the content size has changed, we need to invalidate the layout
+    //     if (newFrame != oldFrame)
+    //     {
+    //         // layout?.InvalidateLayout();
+    //     }
+    // }
 
     public void UpdatePosition(PositionInfo positionInfo)
     {
+        Debug.WriteLine("UpdatePosition: " + positionInfo.Position);
         PositionInfo = positionInfo;
         if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
         {
@@ -221,6 +229,25 @@ internal class CvCell : UICollectionViewCell
 
         return layoutAttributes;
     }
+    
+    private static CGRect GetVerticalLayoutFrame(IView virtualView, CGRect frame)
+    {
+        double height;
+        // slight optimization to avoid measuring the view if it's already been measured
+        if (virtualView.Height is < 0 or double.NaN)
+        {
+            var measure = virtualView.Measure(frame.Size.Width, double.PositiveInfinity);
+            height = measure.Height;
+        }
+        else
+        {
+            height = virtualView.Height;
+        }
+
+        frame.Height = new nfloat(height);
+
+        return frame;
+    }
 
     protected override void Dispose(bool disposing)
     {
@@ -267,7 +294,7 @@ internal class CvCell : UICollectionViewCell
             // Adjust constraints of subviews if needed
             foreach (var subview in Subviews)
             {
-                subview.Frame = Bounds;
+                subview.Frame = this.Bounds;
             }
         }
 
