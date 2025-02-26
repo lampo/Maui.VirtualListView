@@ -1,5 +1,4 @@
-﻿using Android.Graphics;
-using AndroidX.RecyclerView.Widget;
+﻿using AndroidX.RecyclerView.Widget;
 using AndroidX.SwipeRefreshLayout.Widget;
 
 namespace Microsoft.Maui.Controls.Platforms.Android
@@ -74,18 +73,6 @@ namespace Microsoft.Maui.Controls.Platforms.Android
                           .SetDuration(100)
                           .Start();
             }
-        }
-
-        public override void OnChildDrawOver(Canvas c, RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, bool isCurrentlyActive)
-        {
-            Console.WriteLine($"OnChildDrawOver: dX: {dX}, dY: {dY}, actionState: {actionState}, isCurrentlyActive: {isCurrentlyActive}");
-            base.OnChildDrawOver(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
-        }
-
-        public override int InterpolateOutOfBoundsScroll(RecyclerView recyclerView, int viewSize, int viewSizeOutOfBounds, int totalSize, long msSinceStartScroll)
-        {
-            Console.WriteLine($"InterpolateOutOfBoundsScroll: viewSize: {viewSize}, viewSizeOutOfBounds: {viewSizeOutOfBounds}, totalSize: {totalSize}, msSinceStartScroll: {msSinceStartScroll}");
-            return base.InterpolateOutOfBoundsScroll(recyclerView, viewSize, viewSizeOutOfBounds, totalSize, msSinceStartScroll);
         }
     }
 }

@@ -179,7 +179,6 @@ internal class CvCell : UICollectionViewCell
 
     public void UpdatePosition(PositionInfo positionInfo)
     {
-        Debug.WriteLine("UpdatePosition: " + positionInfo.Position);
         PositionInfo = positionInfo;
         if (VirtualView?.TryGetTarget(out var virtualView) ?? false)
         {

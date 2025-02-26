@@ -22,9 +22,7 @@ public class VirtualListViewController : UICollectionViewController
         CollectionView.Delegate = this;
     }
 
-
     internal CvDataSource DataSource { get; }
-
 
     public override void ItemSelected(UICollectionView collectionView, NSIndexPath indexPath)
         => HandleSelection(collectionView, indexPath, true);

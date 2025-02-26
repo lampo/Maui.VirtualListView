@@ -11,16 +11,22 @@ internal sealed class CvLayout : UICollectionViewLayout
     private nfloat dynamicContentWidth = 0;
 
     // Cache of layout attributes in order for fast index-based lookup.
+
     private List<CGRect> cache = [];
 
     // Previous state of the item hash codes.
+
     private List<int> previousItemPositionCache = [];
 
     // The previously observed content hash code.
+
     private int previousContentHashCode = 0;
 
     private UICollectionViewScrollDirection scrollDirection = UICollectionViewScrollDirection.Vertical;
+
     private readonly nfloat estimatedMeasurement = 50;
+
+    public bool NeedsLayout { get; private set; }
 
     public UICollectionViewScrollDirection ScrollDirection
     {
@@ -71,6 +77,8 @@ internal sealed class CvLayout : UICollectionViewLayout
         {
             return;
         }
+
+        this.NeedsLayout = false;
 
         // We'll build a new cache list in the proper order, and a new dictionary for the updated items.
         var newCache = new List<CGRect>();
@@ -182,6 +190,11 @@ internal sealed class CvLayout : UICollectionViewLayout
         frame.Size = newFrame;
         this.cache[indexPath.Row] = frame;
         // this.RebuildCachedFramePositions();
+        this.NeedsLayout = true;
+        
+        this.InvalidateLayout();
+        this.CollectionView.SetNeedsLayout();
+        this.CollectionView.SetNeedsDisplay();
     }
 
     public void SwapItemSizesWhileDragging(NSIndexPath fromIndexPath, NSIndexPath toIndexPath)

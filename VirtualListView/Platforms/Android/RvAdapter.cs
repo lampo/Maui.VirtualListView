@@ -1,7 +1,9 @@
-﻿using Android.Content;
+﻿using System.Diagnostics;
+using Android.Content;
 using Android.Views;
 using AndroidX.RecyclerView.Widget;
 using Microsoft.Maui.Adapters;
+using static Android.Icu.Text.IDNA;
 
 namespace Microsoft.Maui;
 
@@ -24,6 +26,8 @@ public partial class RvAdapter : RecyclerView.Adapter
     public override int ItemCount
         => (cachedItemCount ??= positionalViewSelector?.TotalCount ?? 0);
 
+    private List<List<object>> items = [];
+
     public RvAdapter(Context context,
                        VirtualListViewHandler handler,
                        PositionalViewSelector positionalViewSelector,
@@ -37,6 +41,21 @@ public partial class RvAdapter : RecyclerView.Adapter
         this.positionalViewSelector = positionalViewSelector;
         this.recycledViewPool = recycledViewPool;
         this.itemMaxRecyclerViews = itemMaxRecyclerViews;
+
+        if (positionalViewSelector?.Adapter == null)
+        {
+            return;
+        }
+
+        for (int s = 0; s < positionalViewSelector?.Adapter?.GetNumberOfSections(); s++)
+        {
+            var section = new List<object>();
+            for (int i = 0; i < positionalViewSelector.Adapter.GetNumberOfItemsInSection(s); i++)
+            {
+                section.Add(positionalViewSelector.Adapter.GetItem(s, i));
+            }
+            items.Add(section);
+        }
     }
 
     public float DisplayScale =>
@@ -54,6 +73,7 @@ public partial class RvAdapter : RecyclerView.Adapter
     {
         if (holder is RvItemHolder rvItemHolder && rvItemHolder?.ViewContainer?.VirtualView != null)
         {
+
             handler.VirtualView.ViewSelector.ViewDetached(rvItemHolder.PositionInfo, rvItemHolder.ViewContainer.VirtualView);
         }
 
@@ -76,7 +96,7 @@ public partial class RvAdapter : RecyclerView.Adapter
             var data = info.Kind switch
             {
                 PositionKind.Item =>
-                    positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
+                    items[info.SectionIndex][info.ItemIndex],
                 PositionKind.SectionHeader =>
                     positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
                 PositionKind.SectionFooter =>
@@ -101,7 +121,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         var data = info.Kind switch
         {
             PositionKind.Item =>
-                positionalViewSelector?.Adapter?.GetItem(info.SectionIndex, info.ItemIndex),
+                items[info.SectionIndex][info.ItemIndex],
             PositionKind.SectionHeader =>
                 positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
             PositionKind.SectionFooter =>
@@ -140,6 +160,7 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)
     {
+        Debug.WriteLine("OnCreateViewHolder");
         var viewHolder = new RvItemHolder(handler.MauiContext, handler.VirtualView.Orientation);
 
         clickListener = new RvViewHolderClickListener(viewHolder, rvh =>
@@ -175,6 +196,24 @@ public partial class RvAdapter : RecyclerView.Adapter
         cachedItemCount = null;
         if (suspendNotifications)
             return;
+
+        items.Clear();
+        if (positionalViewSelector?.Adapter == null)
+        {
+            this.NotifyDataSetChanged();
+            return;
+        }
+
+        for (int s = 0; s < positionalViewSelector?.Adapter?.GetNumberOfSections(); s++)
+        {
+            var section = new List<object>();
+            for (int i = 0; i < positionalViewSelector.Adapter.GetNumberOfItemsInSection(s); i++)
+            {
+                section.Add(positionalViewSelector.Adapter.GetItem(s, i));
+            }
+            items.Add(section);
+        }
+
         this.NotifyDataSetChanged();
         //lock (lockObj)
         //{
@@ -206,6 +245,11 @@ public partial class RvAdapter : RecyclerView.Adapter
         {
             return false;
         }
+
+
+        var item = items[fromPosition.SectionIndex][fromPosition.ItemIndex];
+        items[fromPosition.SectionIndex].RemoveAt(fromPosition.ItemIndex);
+        items[toPosition.SectionIndex].Insert(toPosition.ItemIndex, item);
 
         this.NotifyItemMoved(fromPositionIndex, toPositionIndex);
 
