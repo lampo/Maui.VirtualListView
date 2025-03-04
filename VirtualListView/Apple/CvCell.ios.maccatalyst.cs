@@ -93,13 +93,13 @@ internal class CvCell : UICollectionViewCell
         var collectionView = this.Superview as UICollectionView;
         var layout = collectionView?.CollectionViewLayout as CvLayout;
         var originalSize = layoutAttributes.Size;
-        layoutAttributes = layout?.ScrollDirection == UICollectionViewScrollDirection.Horizontal
-            ? GetHorizontalLayoutAttributes(virtualView, layoutAttributes)
-            : GetVerticalLayoutAttributes(virtualView, layoutAttributes);
+        layoutAttributes = layout?.ScrollDirection != UICollectionViewScrollDirection.Horizontal
+            ? GetVerticalLayoutAttributes(virtualView, layoutAttributes)
+            : GetHorizontalLayoutAttributes(virtualView, layoutAttributes);
         
         if (originalSize != layoutAttributes.Frame.Size)
         {
-            layout.UpdateItemSize(layoutAttributes.IndexPath, layoutAttributes.Frame.Size);
+            layout?.UpdateItemSize(layoutAttributes.IndexPath, layoutAttributes.Frame.Size);
         }
 
         return layoutAttributes;
