@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 
 main() {
-  az login && dotnet nuget push --source "Ramsey Solutions" --api-key az $1  
+  echo "Deleting local artifacts..."
+  rm -r ./artifacts
+
+  echo "Building..."
+  dotnet pack -c Release \
+    -o ./artifacts ./VirtualListView/VirtualListView.csproj
+
+  echo "Logging In..."
+  az login
+
+  local artifact="$(ls ./artifacts/*.nupkg)"
+  local package="$(echo -n "$artifact")"
+
+  echo "Pushing package: $package..."
+  dotnet nuget push --source "Ramsey Solutions" --api-key az $package
 }
 
-main "$@";
+main "$@"
