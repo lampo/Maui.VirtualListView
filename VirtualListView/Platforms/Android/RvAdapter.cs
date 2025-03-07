@@ -24,9 +24,11 @@ public partial class RvAdapter : RecyclerView.Adapter
     int? cachedItemCount = null;
 
     public override int ItemCount
-        => (cachedItemCount ??= positionalViewSelector?.TotalCount ?? 0);
+        => positionInfoCache.Count;
 
     private List<List<object>> items = [];
+    private List<PositionInfo> positionInfoCache = [];
+    
 
     public RvAdapter(Context context,
                        VirtualListViewHandler handler,
@@ -82,7 +84,7 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public override void OnBindViewHolder(RecyclerView.ViewHolder holder, int position)
     {
-        var info = positionalViewSelector.GetInfo(position);
+        var info = positionInfoCache.Count > position ? positionInfoCache[position] : null;
         if (info == null)
             return;
 
@@ -105,7 +107,6 @@ public partial class RvAdapter : RecyclerView.Adapter
             };
 
             itemHolder.UpdatePosition(info);
-
             positionalViewSelector?.ViewSelector?.RecycleView(info, data, itemHolder.ViewContainer.VirtualView);
         }
     }
@@ -116,7 +117,7 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public override int GetItemViewType(int position)
     {
-        var info = positionalViewSelector.GetInfo(position);
+        var info = positionInfoCache[position];
 
         var data = info.Kind switch
         {
@@ -198,6 +199,7 @@ public partial class RvAdapter : RecyclerView.Adapter
             return;
 
         items.Clear();
+        positionInfoCache.Clear();
         if (positionalViewSelector?.Adapter == null)
         {
             this.NotifyDataSetChanged();
@@ -213,12 +215,14 @@ public partial class RvAdapter : RecyclerView.Adapter
             }
             items.Add(section);
         }
+        
+        for (int s = 0; s < positionalViewSelector.TotalCount; s++)
+        {
+            var info = positionalViewSelector.GetInfo(s);
+            positionInfoCache.Add(info);
+        }
 
         this.NotifyDataSetChanged();
-        //lock (lockObj)
-        //{
-        //	cachedReuseIds.Clear();
-        //}
     }
 
     private static IView? CreateContent(object viewOrTemplate)
@@ -232,10 +236,10 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public bool OnItemMove(int fromPositionIndex, int toPositionIndex)
     {
-        var fromPosition = positionalViewSelector.GetInfo(fromPositionIndex);
-        var toPosition = positionalViewSelector.GetInfo(toPositionIndex);
+        var fromPosition = positionInfoCache.Count > fromPositionIndex ? positionInfoCache[fromPositionIndex] : null;
+        var toPosition = positionInfoCache.Count > toPositionIndex ? positionInfoCache[toPositionIndex] : null;
 
-        if (fromPosition.Kind != toPosition.Kind)
+        if (fromPosition?.Kind != toPosition?.Kind)
         {
             return false;
         }
@@ -263,7 +267,7 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public void OnDrop(RvItemHolder itemHolder)
     {
-        var info = positionalViewSelector.GetInfo(itemHolder.AbsoluteAdapterPosition);
+        var info = positionInfoCache[itemHolder.AbsoluteAdapterPosition];
 
         suspendNotifications = false;        
         ((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnReorderComplete(itemHolder.PositionInfo.SectionIndex, itemHolder.PositionInfo.ItemIndex, info.SectionIndex, info.ItemIndex);

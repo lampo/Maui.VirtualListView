@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+main() {
+  az login && dotnet nuget push --source "Ramsey Solutions" --api-key az $1  
+}
+
+main "$@";
