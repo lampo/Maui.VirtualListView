@@ -27,6 +27,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         => positionInfoCache.Count;
 
     private List<List<object>> items = [];
+    private List<object> sections = [];
     private List<PositionInfo> positionInfoCache = [];
     
 
@@ -100,9 +101,9 @@ public partial class RvAdapter : RecyclerView.Adapter
                 PositionKind.Item =>
                     items[info.SectionIndex][info.ItemIndex],
                 PositionKind.SectionHeader =>
-                    positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                    sections[info.SectionIndex],
                 PositionKind.SectionFooter =>
-                    positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                    sections[info.SectionIndex],
                 _ => null
             };
 
@@ -124,9 +125,9 @@ public partial class RvAdapter : RecyclerView.Adapter
             PositionKind.Item =>
                 items[info.SectionIndex][info.ItemIndex],
             PositionKind.SectionHeader =>
-                positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                sections[info.SectionIndex],
             PositionKind.SectionFooter =>
-                positionalViewSelector?.Adapter?.GetSection(info.SectionIndex),
+                sections[info.SectionIndex],
             _ => null
         };
 
@@ -199,6 +200,7 @@ public partial class RvAdapter : RecyclerView.Adapter
             return;
 
         items.Clear();
+        sections.Clear();
         positionInfoCache.Clear();
         if (positionalViewSelector?.Adapter == null)
         {
@@ -209,6 +211,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         for (int s = 0; s < positionalViewSelector?.Adapter?.GetNumberOfSections(); s++)
         {
             var section = new List<object>();
+            sections.Add(positionalViewSelector.Adapter.GetSection(s));
             for (int i = 0; i < positionalViewSelector.Adapter.GetNumberOfItemsInSection(s); i++)
             {
                 section.Add(positionalViewSelector.Adapter.GetItem(s, i));
