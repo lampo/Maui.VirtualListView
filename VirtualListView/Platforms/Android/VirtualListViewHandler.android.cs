@@ -50,24 +50,24 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 		{
 			VirtualView?.Refresh(() => swipeRefreshLayout.Refreshing = false);
 		}));
-		
+
 		layoutManager = new LinearLayoutManager(Context);
 		//layoutManager.Orientation = LinearLayoutManager.Horizontal;
 
 		PositionalViewSelector = new PositionalViewSelector(VirtualView);
 
 		adapter = new RvAdapter(Context, this, PositionalViewSelector, recyclerView.GetRecycledViewPool(), ItemMaxRecyclerViews);
-		
+
         recyclerView.NestedScrollingEnabled = false;
 
 		recyclerView.AddOnScrollListener(new RvScrollListener((rv, dx, dy) =>
 		{
 			var x = Context.FromPixels(dx);
 			var y = Context.FromPixels(dy);
-			
+
 			VirtualView?.Scrolled(x, y);
 		}));
-		
+
         recyclerView.SetLayoutManager(layoutManager);
 		recyclerView.SetAdapter(adapter);
         recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
@@ -86,26 +86,22 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 	public void InvalidateData()
 	{
-		int originalFirstVisibleItemPosition = layoutManager.FindFirstVisibleItemPosition();
-        int positionDelta = GetCurrentScrollPositionDelta();
 		UpdateEmptyViewVisibility();
 
 		recyclerView.Post(() => {
-			adapter?.InvalidateData();			
-			
-            var avialablePositions = GetNumberOfAvailableScrollPositions();
-            
-			if (originalFirstVisibleItemPosition > avialablePositions)
+			adapter?.InvalidateData();
+
+            var availableScrollPositions = GetNumberOfAvailableScrollPositions();
+			if (layoutManager != null && layoutManager.FindFirstVisibleItemPosition() > availableScrollPositions)
 			{
-                recyclerView.ScrollToPosition(avialablePositions - positionDelta);
-			}            
+                recyclerView.ScrollToPosition(availableScrollPositions - GetCurrentScrollPositionDelta());
+			}
         });
 	}
 
     private int GetCurrentScrollPositionDelta()
     {
-        var avialablePositions = GetNumberOfAvailableScrollPositions();
-        return avialablePositions - layoutManager.FindFirstVisibleItemPosition();
+	    return GetNumberOfAvailableScrollPositions() - layoutManager.FindFirstVisibleItemPosition();
     }
 
     private int GetNumberOfAvailableScrollPositions()
@@ -199,7 +195,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 			UpdateEmptyViewVisibility();
 		}
 	}
-	
+
 	ScrollBarVisibility _defaultHorizontalScrollVisibility = ScrollBarVisibility.Default;
 	ScrollBarVisibility _defaultVerticalScrollVisibility = ScrollBarVisibility.Default;
 
@@ -216,7 +212,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 		recyclerView.VerticalScrollBarEnabled = newVerticalScrollVisiblility == ScrollBarVisibility.Always;
 	}
-	
+
 	void UpdateHorizontalScrollbarVisibility(ScrollBarVisibility scrollBarVisibility)
 	{
 		if (_defaultHorizontalScrollVisibility == ScrollBarVisibility.Default)
@@ -230,11 +226,11 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 		recyclerView.HorizontalScrollBarEnabled = newHorizontalScrollVisiblility == ScrollBarVisibility.Always;
 	}
-	
+
 	public IReadOnlyList<IPositionInfo> FindVisiblePositions()
 	{
 		var positions = new List<IPositionInfo>();
-		
+
 		var firstVisibleItemPosition = layoutManager.FindFirstVisibleItemPosition();
 		var lastVisibleItemPosition = layoutManager.FindLastVisibleItemPosition();
 
