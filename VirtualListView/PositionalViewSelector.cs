@@ -2,7 +2,7 @@
 
 namespace Microsoft.Maui;
 
-internal class PositionalViewSelector
+public class PositionalViewSelector
 {
 	public readonly IVirtualListView VirtualListView;
 	public IVirtualListViewAdapter Adapter => VirtualListView?.Adapter;
@@ -114,7 +114,6 @@ internal class PositionalViewSelector
 		return position;
 	}
 
-
 	public PositionInfo GetInfo(int position)
 	{
 		if (Adapter == null)
@@ -166,8 +165,7 @@ internal class PositionalViewSelector
 		return new PositionInfo
 		{
 			Position = position,
-			Kind = PositionKind.Footer
+			Kind = PositionKind.Footer,
 		};
 	}
-
 }

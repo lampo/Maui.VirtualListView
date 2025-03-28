@@ -51,6 +51,12 @@ public partial class VirtualListViewHandler : IVirtualListViewHandler
 	{
 
 	}
+	
+	public VirtualListViewHandler(IPropertyMapper mapper = null) : base(mapper ?? ViewMapper, CommandMapper)
+	{
+
+	}
+	
 
 	internal PositionalViewSelector PositionalViewSelector { get; private set; }
 

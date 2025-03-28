@@ -50,11 +50,18 @@ public interface IVirtualListView : IView
 
 	void ScrollToItem(ItemPosition path, bool animated);
 
-	IReadOnlyList<IPositionInfo> FindVisiblePositions();
+	IReadOnlyList<IPositionInfo> FindVisiblePositions();	
+}
+
+public interface IReorderbleVirtualListView : IVirtualListView
+{
+    bool CanReorderItems { get; set; }
+    
+    new IReorderableVirtualListViewAdapter Adapter { get; set; }
 }
 
 public enum ListOrientation
 {
 	Vertical,
-	Horizontal
+	Horizontal,
 }

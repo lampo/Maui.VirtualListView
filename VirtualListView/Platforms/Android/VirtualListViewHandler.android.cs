@@ -2,6 +2,7 @@
 using Android.Widget;
 using AndroidX.RecyclerView.Widget;
 using AndroidX.SwipeRefreshLayout.Widget;
+using Microsoft.Maui.Controls.PlatformConfiguration;
 using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Platform;
 
@@ -9,22 +10,28 @@ namespace Microsoft.Maui;
 
 public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, FrameLayout>
 {
-	FrameLayout rootLayout;
-	SwipeRefreshLayout swipeRefreshLayout;
-	RvAdapter adapter;
-	RecyclerView recyclerView;
+    /// <summary>
+    /// this is the maximum number of RecyclerViews that will be cached by the RecyclerViewPool, only adjust for know lists to improve performance.
+	/// This value will be used to set the RecyclerView.SetItemViewCacheSize method for each individual template type.
+	/// The balance is to have enough RecyclerViews to avoid creating them on the fly, but not too many to avoid memory issues.
+    /// </summary>
+    protected virtual int ItemMaxRecyclerViews => 10;
+
+    FrameLayout rootLayout;
+	protected SwipeRefreshLayout swipeRefreshLayout;
+	protected RvAdapter adapter;
+	protected RecyclerView recyclerView;
 	LinearLayoutManager layoutManager;
 	Android.Views.View emptyView;
 
 	protected override FrameLayout CreatePlatformView()
 	{
 		rootLayout ??= new FrameLayout(Context);
+        recyclerView ??= CreateRecyclerView();
 
-		recyclerView ??= new RecyclerView(Context);
-
-		if (swipeRefreshLayout is null)
+        if (swipeRefreshLayout is null)
 		{
-			swipeRefreshLayout = new SwipeRefreshLayout(Context);
+			swipeRefreshLayout = CreateSwipeRefreshLayout();
 			swipeRefreshLayout.AddView(recyclerView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent));
 		}
 
@@ -33,20 +40,26 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 		return rootLayout;
 	}
 
-	protected override void ConnectHandler(FrameLayout nativeView)
+	protected virtual RecyclerView CreateRecyclerView() => new(Context);
+
+	protected virtual SwipeRefreshLayout CreateSwipeRefreshLayout() => new(Context);
+
+    protected override void ConnectHandler(FrameLayout nativeView)
 	{
 		swipeRefreshLayout.SetOnRefreshListener(new SrlRefreshListener(() =>
 		{
 			VirtualView?.Refresh(() => swipeRefreshLayout.Refreshing = false);
 		}));
-
+		
 		layoutManager = new LinearLayoutManager(Context);
 		//layoutManager.Orientation = LinearLayoutManager.Horizontal;
 
 		PositionalViewSelector = new PositionalViewSelector(VirtualView);
 
-		adapter = new RvAdapter(Context, this, PositionalViewSelector);
+		adapter = new RvAdapter(Context, this, PositionalViewSelector, recyclerView.GetRecycledViewPool(), ItemMaxRecyclerViews);
 		
+        recyclerView.NestedScrollingEnabled = false;
+
 		recyclerView.AddOnScrollListener(new RvScrollListener((rv, dx, dy) =>
 		{
 			var x = Context.FromPixels(dx);
@@ -54,10 +67,10 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 			
 			VirtualView?.Scrolled(x, y);
 		}));
-
-		recyclerView.SetLayoutManager(layoutManager);
+		
+        recyclerView.SetLayoutManager(layoutManager);
 		recyclerView.SetAdapter(adapter);
-		recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
+        recyclerView.LayoutParameters = new ViewGroup.LayoutParams(
 			ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.MatchParent);
 	}
 
@@ -73,10 +86,32 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 	public void InvalidateData()
 	{
+		int originalFirstVisibleItemPosition = layoutManager.FindFirstVisibleItemPosition();
+        int positionDelta = GetCurrentScrollPositionDelta();
 		UpdateEmptyViewVisibility();
-		adapter?.Reset();
-		adapter?.NotifyDataSetChanged();
+
+		recyclerView.Post(() => {
+			adapter?.InvalidateData();			
+			
+            var avialablePositions = GetNumberOfAvailableScrollPositions();
+            
+			if (originalFirstVisibleItemPosition > avialablePositions)
+			{
+                recyclerView.ScrollToPosition(avialablePositions - positionDelta);
+			}            
+        });
 	}
+
+    private int GetCurrentScrollPositionDelta()
+    {
+        var avialablePositions = GetNumberOfAvailableScrollPositions();
+        return avialablePositions - layoutManager.FindFirstVisibleItemPosition();
+    }
+
+    private int GetNumberOfAvailableScrollPositions()
+    {
+        return adapter?.ItemCount ?? 0;
+    }
 
 	void PlatformScrollToItem(ItemPosition itemPosition, bool animated)
 	{

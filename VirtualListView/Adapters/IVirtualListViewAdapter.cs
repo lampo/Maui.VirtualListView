@@ -12,5 +12,15 @@ public interface IVirtualListViewAdapter
 
 	event EventHandler OnDataInvalidated;
 
-	void InvalidateData();
+	void InvalidateData();	   
+}
+
+
+public interface IReorderableVirtualListViewAdapter : IVirtualListViewAdapter
+{
+    bool CanMoveItem(PositionInfo from, PositionInfo to);
+
+	void OnReorderComplete(int originalSection, int originalIndex, int finalSection, int finalIndex);
+
+    bool CanReorderItem(PositionInfo position);
 }

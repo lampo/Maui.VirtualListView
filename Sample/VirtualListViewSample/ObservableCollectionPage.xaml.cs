@@ -1,9 +1,10 @@
 using Microsoft.Maui.Adapters;
 using System.Collections.ObjectModel;
+using Microsoft.Maui.HotReload;
 
 namespace VirtualListViewSample;
 
-public partial class ObservableCollectionPage : ContentPage
+public partial class ObservableCollectionPage : ContentPage, IHotReloadableView
 {
 	public ObservableCollectionPage()
 	{
@@ -16,7 +17,7 @@ public partial class ObservableCollectionPage : ContentPage
 			Items.Add($"Item: {i}");
 		}
 
-		vlv.Adapter = Adapter;
+		this.BindingContext = this;
 	}
 
 	public ObservableCollectionAdapter<string> Adapter { get; set; }

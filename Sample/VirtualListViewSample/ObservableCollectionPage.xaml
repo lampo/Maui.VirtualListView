@@ -1,44 +1,68 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage
-	xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-	xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-	x:Class="VirtualListViewSample.ObservableCollectionPage"
-	xmlns:local="clr-namespace:VirtualListViewSample"
-	xmlns:vlv="clr-namespace:Microsoft.Maui.Controls;assembly=VirtualListView"
-	Title="ObservableCollectionPage">
-	<Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto,Auto" Padding="20">
-		<vlv:VirtualListView
-			Grid.Row="0"
-			Grid.Column="0" Grid.ColumnSpan="3"
-			x:Name="vlv"
-			OnSelectedItemsChanged="vlv_SelectedItemsChanged"
-			SelectionMode="Multiple">
-			<vlv:VirtualListView.EmptyView>
-				<Grid>
-					<Label HorizontalOptions="Center" VerticalOptions="Center" Text="EMPTY!!!" />
-				</Grid>
-			</vlv:VirtualListView.EmptyView>
-			<vlv:VirtualListView.GlobalHeader>
-				<Label Text="HEADER"/>
+    Title="ObservableCollectionPage"
+    x:Class="VirtualListViewSample.ObservableCollectionPage"
+    x:DataType="local:ObservableCollectionPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:local="clr-namespace:VirtualListViewSample"
+    xmlns:vlv="clr-namespace:Microsoft.Maui.Controls;assembly=VirtualListView"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Grid
+        ColumnDefinitions="*,Auto,Auto"
+        Padding="20"
+        RowDefinitions="*,Auto">
+        <vlv:VirtualListView
+            Adapter="{Binding Adapter}"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            Grid.Row="0"
+            OnSelectedItemsChanged="vlv_SelectedItemsChanged"
+            Orientation="Vertical"
+            SelectionMode="Multiple"
+            x:Name="vlv">
+            <vlv:VirtualListView.EmptyView>
+                <Grid>
+                    <Label
+                        HorizontalOptions="Center"
+                        Text="EMPTY!!!"
+                        VerticalOptions="Center" />
+                </Grid>
+            </vlv:VirtualListView.EmptyView>
+            <vlv:VirtualListView.GlobalHeader>
+                <Label Text="HEADER" />
 
-			</vlv:VirtualListView.GlobalHeader>
-			<vlv:VirtualListView.ItemTemplate>
-				<DataTemplate>
-					<vlv:VirtualViewCell>
-						<Border
-							Margin="10,0,0,0"
-							Padding="4"
-							Background="LightBlue"
-							StrokeShape="{RoundRectangle CornerRadius=10}">
-							<Label Margin="10,6,10,6" Text="{Binding .}" />
-						</Border>
-					</vlv:VirtualViewCell>
-				</DataTemplate>
-			</vlv:VirtualListView.ItemTemplate>
-		</vlv:VirtualListView>
+            </vlv:VirtualListView.GlobalHeader>
+            <vlv:VirtualListView.ItemTemplate>
+                <DataTemplate>
+                    <vlv:VirtualViewCell>
+                        <Border
+                            Background="LightBlue"
+                            HeightRequest="120"
+                            Margin="10,0,0,0"
+                            Padding="4"
+                            StrokeShape="{RoundRectangle CornerRadius=10}"
+                            WidthRequest="120">
+                            <Label Margin="10,6,10,6" Text="{Binding .}" />
+                        </Border>
+                    </vlv:VirtualViewCell>
+                </DataTemplate>
+            </vlv:VirtualListView.ItemTemplate>
+        </vlv:VirtualListView>
 
-		<Entry x:Name="entryItem" Grid.Row="1" Grid.Column="0" Placeholder="Item" />
-		<Button Grid.Row="1" Grid.Column="1" Text="Add" Clicked="Button_Clicked" />
-        <Button Grid.Row="1" Grid.Column="2" Text="Scroll To" Clicked="ScrollTo_Clicked" />
-	</Grid>
+        <Entry
+            Grid.Column="0"
+            Grid.Row="1"
+            Placeholder="Item"
+            x:Name="entryItem" />
+        <Button
+            Clicked="Button_Clicked"
+            Grid.Column="1"
+            Grid.Row="1"
+            Text="Add" />
+        <Button
+            Clicked="ScrollTo_Clicked"
+            Grid.Column="2"
+            Grid.Row="1"
+            Text="Scroll To" />
+    </Grid>
 </ContentPage>

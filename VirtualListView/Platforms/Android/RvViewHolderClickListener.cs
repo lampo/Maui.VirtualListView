@@ -1,7 +1,7 @@
 ﻿using AView = Android.Views.View;
 namespace Microsoft.Maui;
 
-internal partial class RvAdapter
+public partial class RvAdapter
 {
 	class RvViewHolderClickListener : Java.Lang.Object, AView.IOnClickListener
 	{
