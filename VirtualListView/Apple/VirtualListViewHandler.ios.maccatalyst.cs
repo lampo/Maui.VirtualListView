@@ -229,7 +229,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, UIVi
 
 	public void InvalidateData()
 	{
-		if (this.SuspendInvalidateUpdate())
+		if (this.SuspendInvalidateUpdate() || this.Controller is null)
 		{
 			return;
 		}
