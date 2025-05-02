@@ -3,6 +3,18 @@ This is an experiment in creating a virtualized ListView control for .NET MAUI t
 
 [![Nuget: Redth.Maui.VirtualListView](https://img.shields.io/nuget/vpre/Redth.Maui.VirtualListView?logo=nuget&label=Redth.Maui.VirtualListView&color=004880&link=https%3A%2F%2Fwww.nuget.org%2Fpackages%2FRedth.Maui.VirtualListView%2F)](https://www.nuget.org/packages/Redth.Maui.VirtualListView)
 
+## Releasing
+
+Unfortunately, this package does not have an automated publish pipeline.
+To publish this package use the [./.bin/publish](./.bin/publish) script to publish.
+
+Make sure you follow the followng steps
+
+1: Merge your code into master
+2: Create a release branch
+3: Run this publish command from the release branch
+
+The version number in the release branch needs to be greater than the previous one.
 
 ## Vroooom!
 

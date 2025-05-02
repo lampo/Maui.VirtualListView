@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Step 1: Merge your code into master
+# Step 2: Create a release branch
+# Step 3: Run this publish command from the release branch
 main() {
   echo "Deleting local artifacts..."
   rm -r ./artifacts
