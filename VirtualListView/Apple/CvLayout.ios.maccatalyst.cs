@@ -88,7 +88,7 @@ internal sealed class CvLayout : UICollectionViewLayout
         {
             int hashCode = this.previousItemPositionCache[i];
             CGSize size = this.cache[i].Size;
-            previousItemLookUp.Add(hashCode, size);
+            previousItemLookUp.TryAdd(hashCode, size);
         }
 
         IReadOnlyList<int> newItemHashes = DataSource.ItemPositionCache;
