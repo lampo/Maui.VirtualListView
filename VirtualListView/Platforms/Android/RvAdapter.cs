@@ -2,6 +2,7 @@
 using Android.Content;
 using Android.Views;
 using AndroidX.RecyclerView.Widget;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Adapters;
 using static Android.Icu.Text.IDNA;
 
@@ -9,6 +10,7 @@ namespace Microsoft.Maui;
 
 public partial class RvAdapter : RecyclerView.Adapter
 {
+    private readonly ILogger? logger;
     readonly VirtualListViewHandler handler;
 
     readonly object lockObj = new object();
@@ -35,7 +37,8 @@ public partial class RvAdapter : RecyclerView.Adapter
                        VirtualListViewHandler handler,
                        PositionalViewSelector positionalViewSelector,
                        RecyclerView.RecycledViewPool recycledViewPool,
-                       int itemMaxRecyclerViews)
+                       int itemMaxRecyclerViews,
+                       ILogger? logger = null)
     {
         Context = context;
         HasStableIds = false;
@@ -44,6 +47,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         this.positionalViewSelector = positionalViewSelector;
         this.recycledViewPool = recycledViewPool;
         this.itemMaxRecyclerViews = itemMaxRecyclerViews;
+        this.logger = logger;
 
         if (positionalViewSelector?.Adapter == null)
         {
@@ -96,15 +100,48 @@ public partial class RvAdapter : RecyclerView.Adapter
 
         if (holder is RvItemHolder itemHolder)
         {
+            var sectionHeaderOrFooter = items.ElementAtOrDefault(info.SectionIndex);
+            var section = sections?.ElementAtOrDefault(info.SectionIndex);
+
             var data = info.Kind switch
             {
                 PositionKind.Item =>
-                    items[info.SectionIndex][info.ItemIndex],
+                    ((Func<object>) (() =>
+                    {
+                        if (sectionHeaderOrFooter == null)
+                        {
+                            LogTrace(nameof(OnBindViewHolder), nameof(items), info.SectionIndex, "parsing the position info", items.Count);
+                        }
+
+                        var itemPosition = sectionHeaderOrFooter?.ElementAtOrDefault(info.ItemIndex);
+                        if (itemPosition == null)
+                        {
+                            LogTrace(nameof(OnBindViewHolder), nameof(sectionHeaderOrFooter), info.ItemIndex, "parsing listview item", sectionHeaderOrFooter.Count);
+                        }
+
+                        return itemPosition;
+                    }))(),
                 PositionKind.SectionHeader =>
-                    sections[info.SectionIndex],
+                    ((Func<object>) (() =>
+                    {
+                        if (section == null)
+                        {
+                            LogTrace(nameof(OnBindViewHolder), nameof(sections), info.SectionIndex, "parsing section header", sections.Count);
+                        }
+
+                        return section;
+                    }))(),
                 PositionKind.SectionFooter =>
-                    sections[info.SectionIndex],
-                _ => null
+                    ((Func<object>) (() =>
+                    {
+                        if (section == null)
+                        {
+                            LogTrace(nameof(OnBindViewHolder), nameof(sections), info.SectionIndex, "parsing section footer", sections.Count);
+                        }
+
+                        return section;
+                    }))(),
+                _ => null,
             };
 
             itemHolder.UpdatePosition(info);
@@ -118,17 +155,55 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public override int GetItemViewType(int position)
     {
-        var info = positionInfoCache[position];
+        var info = positionInfoCache.ElementAtOrDefault(position);
+        if (info == null)
+        {
+            LogTrace(nameof(GetItemViewType), nameof(positionInfoCache), position, "retrieving position info from the positionInfoCache", positionInfoCache.Count);
+            return -1;
+        }
+        var sectionHeaderOrFooter = items.ElementAtOrDefault(info.SectionIndex);
+        var section = sections?.ElementAtOrDefault(info.SectionIndex);
 
         var data = info.Kind switch
         {
             PositionKind.Item =>
-                items[info.SectionIndex][info.ItemIndex],
+                ((Func<object>)(() =>
+                {
+                    if (sectionHeaderOrFooter == null)
+                    {
+                        LogTrace(nameof(GetItemViewType), nameof(items), info.SectionIndex, "parsing listview item", items.Count);
+                        return null;
+                    }
+
+                    var item = sectionHeaderOrFooter.ElementAtOrDefault(info.ItemIndex);
+                    if (item == null)
+                    {
+                        LogTrace(nameof(GetItemViewType), nameof(sectionHeaderOrFooter), info.ItemIndex, "parsing listview item", sectionHeaderOrFooter.Count);
+                    }
+
+                    return item;
+                }))(),
             PositionKind.SectionHeader =>
-                sections[info.SectionIndex],
+                ((Func<object>) (() =>
+                {
+                    if (section == null)
+                    {
+                        LogTrace(nameof(GetItemViewType), nameof(sections), info.SectionIndex, "parsing listview header", sections.Count);
+                    }
+
+                    return section;
+                }))(),
             PositionKind.SectionFooter =>
-                sections[info.SectionIndex],
-            _ => null
+                ((Func<object>) (() =>
+                {
+                    if (section == null)
+                    {
+                        LogTrace(nameof(GetItemViewType), nameof(sections), info.SectionIndex, "parsing listview footer", sections.Count);
+                    }
+
+                    return section;
+                }))(),
+            _ => null,
         };
 
         var (reuseId, view) = positionalViewSelector.ViewSelector.GetReuseIdAndView(info, data);
@@ -147,7 +222,7 @@ public partial class RvAdapter : RecyclerView.Adapter
                     PositionKind.Header => 1,
                     PositionKind.Item => itemMaxRecyclerViews,
                     PositionKind.Footer => 1,
-                    _ => 5
+                    _ => 5,
                 };
                 recycledViewPool.SetMaxRecycledViews(reuseIdNumber, resusePoolCount);
             }
@@ -185,7 +260,11 @@ public partial class RvAdapter : RecyclerView.Adapter
 
         viewHolder.ItemView.SetOnClickListener(clickListener);
 
-        var viewOrTemplate = this.cachedViews[viewType];
+        if (!this.cachedViews.TryGetValue(viewType, out var viewOrTemplate))
+        {
+            LogTrace(nameof(OnCreateViewHolder), nameof(this.cachedViews), viewType, "setting up a view holder", this.cachedViews.Count);
+            return viewHolder;
+        }
         viewHolder.SetupView(CreateContent(viewOrTemplate));
 
         return viewHolder;
@@ -274,5 +353,12 @@ public partial class RvAdapter : RecyclerView.Adapter
 
         suspendNotifications = false;        
         ((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnReorderComplete(itemHolder.PositionInfo.SectionIndex, itemHolder.PositionInfo.ItemIndex, info.SectionIndex, info.ItemIndex);
+    }
+
+    private void LogTrace(string methodName, object collection, int index, string context, int collectionLength)
+    {
+        logger?.LogTrace(
+            "STOPPED CRASH! {method} => {collectionName} could not find {position} while {context}. Cache was {cacheLength} items deep", 
+            methodName, collection, index, context, collectionLength);
     }
 }

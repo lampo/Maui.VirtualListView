@@ -56,7 +56,7 @@ public partial class VirtualListViewHandler : ViewHandler<IVirtualListView, Fram
 
 		PositionalViewSelector = new PositionalViewSelector(VirtualView);
 
-		adapter = new RvAdapter(Context, this, PositionalViewSelector, recyclerView.GetRecycledViewPool(), ItemMaxRecyclerViews);
+		adapter = new RvAdapter(Context, this, PositionalViewSelector, recyclerView.GetRecycledViewPool(), ItemMaxRecyclerViews, Logger);
 
         recyclerView.NestedScrollingEnabled = false;
 

@@ -1,10 +1,14 @@
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Adapters;
 
 namespace Microsoft.Maui;
 
 public partial class VirtualListViewHandler : IVirtualListViewHandler
 {
+	protected virtual ILogger Logger => null;
+
 	#if ANDROID || IOS || MACCATALYST || WINDOWS
+
 	public static new IPropertyMapper<IVirtualListView, VirtualListViewHandler> ViewMapper = new PropertyMapper<IVirtualListView, VirtualListViewHandler>(Handlers.ViewHandler.ViewMapper)
 	{
 		[nameof(IVirtualListView.Adapter)] = MapAdapter,
