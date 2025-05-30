@@ -121,7 +121,7 @@ public partial class RvAdapter : RecyclerView.Adapter
         var info = positionInfoCache.ElementAtOrDefault(position);
         if (info == null)
         {
-            // return no reuse id becauet the item view could not be found in the cache.
+            // return no reuse id because the item view could not be found in the cache.
             return -1;
         }
 
