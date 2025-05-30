@@ -118,7 +118,12 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public override int GetItemViewType(int position)
     {
-        var info = positionInfoCache[position];
+        var info = positionInfoCache.ElementAtOrDefault(position);
+        if (info == null)
+        {
+            // return no reuse id becauet the item view could not be found in the cache.
+            return -1;
+        }
 
         var data = info.Kind switch
         {
@@ -147,7 +152,7 @@ public partial class RvAdapter : RecyclerView.Adapter
                     PositionKind.Header => 1,
                     PositionKind.Item => itemMaxRecyclerViews,
                     PositionKind.Footer => 1,
-                    _ => 5
+                    _ => 5,
                 };
                 recycledViewPool.SetMaxRecycledViews(reuseIdNumber, resusePoolCount);
             }
