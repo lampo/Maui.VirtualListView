@@ -275,8 +275,12 @@ public partial class RvAdapter : RecyclerView.Adapter
 
     public void OnDrop(RvItemHolder itemHolder)
     {
-        var info = positionInfoCache[itemHolder.AbsoluteAdapterPosition];
+        var info = positionInfoCache.ElementAtOrDefault(itemHolder.AbsoluteAdapterPosition);
 
+        if (info == null)
+        {
+            return;
+        }
         suspendNotifications = false;        
         ((IReorderableVirtualListViewAdapter)handler.VirtualView.Adapter).OnReorderComplete(itemHolder.PositionInfo.SectionIndex, itemHolder.PositionInfo.ItemIndex, info.SectionIndex, info.ItemIndex);
     }
