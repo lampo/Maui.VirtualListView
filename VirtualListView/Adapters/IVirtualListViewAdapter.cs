@@ -18,9 +18,9 @@ public interface IVirtualListViewAdapter
 
 public interface IReorderableVirtualListViewAdapter : IVirtualListViewAdapter
 {
-    bool CanMoveItem(PositionInfo from, PositionInfo to);
+    bool CanMoveItem(IPositionInfo from, IPositionInfo to);
 
 	void OnReorderComplete(int originalSection, int originalIndex, int finalSection, int finalIndex);
 
-    bool CanReorderItem(PositionInfo position);
+    bool CanReorderItem(IPositionInfo position);
 }
